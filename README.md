@@ -1,44 +1,38 @@
 # Employee Time Tracking Application
 
-A full-stack web application for tracking and reporting employee hourly work across different clients.
+A full-stack web application for tracking and reporting employee hourly work across different clients, built with Next.js.
 
-## ⚠️ Important Notes
+## Important Notes
 
 ### Data Persistence
 **This application uses SQLite in-memory database as specified in requirements.**
-- ⚠️ **All data is lost when the backend server restarts**
+- All data is lost when the server restarts
 - Suitable for development and testing
-- For production use, modify `backend/src/database/init.js` to use file-based SQLite instead of `:memory:`
+- For production use, modify `lib/db.ts` to use file-based SQLite instead of `:memory:`
 
 ### Authentication
-- Email-only authentication with JWT tokens
-- No password required - assumes trusted internal network
+- Email-only authentication via HTTP-only cookie
+- No password required — assumes trusted internal network
 - Anyone with a valid email can create an account and log in
-- Consider integrating with company SSO for production use
+- Auto-creates user on first login
 
 ## Features
 
-- ✅ User authentication (email-based with JWT tokens)
-- ✅ Add, edit, and delete clients
-- ✅ Add, edit, and delete hourly work entries for each client
-- ✅ View hourly reports for each client
-- ✅ Export hourly reports to CSV or PDF
+- User authentication (email-based, passwordless)
+- Add, edit, and delete clients
+- Add, edit, and delete hourly work entries for each client
+- View hourly reports for each client
+- Export hourly reports to CSV or PDF
+- Responsive sidebar navigation with MUI
 
 ## Tech Stack
 
-### Frontend
-- **React** with TypeScript
-- **Vite** for build tooling
-- **Material UI** for components
-- **React Query** for server state management
-- **React Router** for navigation
-- **Axios** for API calls
-
-### Backend
-- **Node.js** with Express
-- **SQLite** in-memory database
-- **JWT** for authentication
-- **Joi** for validation
+- **Next.js 16** with App Router and TypeScript
+- **React 19** with Server and Client Components
+- **Material UI 7** with SSR via `AppRouterCacheProvider`
+- **TanStack React Query** for client-side data fetching
+- **SQLite 3** in-memory database with Promise-wrapped API
+- **Joi** for request validation
 - **PDFKit** for PDF generation
 - **csv-writer** for CSV export
 
@@ -46,252 +40,140 @@ A full-stack web application for tracking and reporting employee hourly work acr
 
 ```
 .
-├── backend/
-│   ├── src/
-│   │   ├── database/
-│   │   │   └── init.js           # Database initialization
-│   │   ├── middleware/
-│   │   │   ├── auth.js           # JWT authentication
-│   │   │   └── errorHandler.js  # Error handling
-│   │   ├── routes/
-│   │   │   ├── auth.js           # Authentication endpoints
-│   │   │   ├── clients.js        # Client CRUD
-│   │   │   ├── workEntries.js    # Work entry CRUD
-│   │   │   └── reports.js        # Reporting & export
-│   │   ├── validation/
-│   │   │   └── schemas.js        # Joi validation schemas
-│   │   └── server.js             # Express server
-│   ├── package.json
-│   └── DEPLOYMENT.md             # Production deployment guide
-│
-└── frontend/
-    ├── src/
-    │   ├── api/
-    │   │   └── client.ts         # API client with JWT
-    │   ├── components/
-    │   │   └── Layout.tsx        # Main layout
-    │   ├── contexts/
-    │   │   └── AuthContext.tsx   # Auth state management
-    │   ├── pages/
-    │   │   ├── LoginPage.tsx     # Login page
-    │   │   ├── DashboardPage.tsx # Dashboard
-    │   │   ├── ClientsPage.tsx   # Client management
-    │   │   ├── WorkEntriesPage.tsx # Work entry management
-    │   │   └── ReportsPage.tsx   # Reports & exports
-    │   ├── types/
-    │   │   └── api.ts            # TypeScript interfaces
-    │   └── App.tsx               # Main app component
-    └── package.json
+├── app/
+│   ├── layout.tsx                        # Root layout (MUI SSR provider)
+│   ├── page.tsx                          # Redirect to /dashboard
+│   ├── login/
+│   │   └── page.tsx                      # Login page
+│   ├── (authenticated)/
+│   │   ├── layout.tsx                    # Sidebar + AppBar layout
+│   │   ├── dashboard/page.tsx            # Dashboard with stats
+│   │   ├── clients/page.tsx              # Client CRUD
+│   │   ├── work-entries/page.tsx         # Work entry CRUD
+│   │   └── reports/page.tsx              # Reports + CSV/PDF export
+│   └── api/
+│       ├── auth/
+│       │   ├── login/route.ts            # POST login
+│       │   ├── logout/route.ts           # POST logout
+│       │   └── me/route.ts              # GET current user
+│       ├── clients/
+│       │   ├── route.ts                  # GET list, POST create, DELETE all
+│       │   └── [id]/route.ts            # GET, PUT, DELETE single
+│       ├── work-entries/
+│       │   ├── route.ts                  # GET list, POST create
+│       │   └── [id]/route.ts            # GET, PUT, DELETE single
+│       └── reports/
+│           ├── client/[clientId]/route.ts        # GET report data
+│           └── export/
+│               ├── csv/[clientId]/route.ts       # GET CSV download
+│               └── pdf/[clientId]/route.ts       # GET PDF download
+├── lib/
+│   ├── types.ts                          # TypeScript interfaces
+│   ├── db.ts                             # SQLite database singleton
+│   ├── auth.ts                           # Request authentication helper
+│   ├── validation.ts                     # Joi validation schemas
+│   ├── errorHandler.ts                   # Error response utility
+│   └── api-client.ts                     # Fetch-based API client
+├── components/
+│   └── Providers.tsx                     # Theme + QueryClient providers
+├── contexts/
+│   └── AuthContext.tsx                   # Auth state management
+├── hooks/
+│   └── useAuth.ts                        # Auth hook
+├── proxy.ts                              # Auth protection (Next.js 16 proxy)
+├── MIGRATION_NOTES.md                    # Migration reference document
+└── frontend/ & backend/                  # Legacy code (kept for reference)
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ installed
-- npm or yarn package manager
+- Node.js 20+
+- npm
 
-### Backend Setup
+### Setup
 
-1. Navigate to backend directory:
-```bash
-cd backend
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Create environment file:
-```bash
-cp .env.example .env
-```
-
-4. Update `.env` with your configuration:
-```bash
-PORT=3001
-NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
-JWT_SECRET=your-secure-secret-key-change-this
-```
-
-5. Start the development server:
+2. Start the development server:
 ```bash
 npm run dev
 ```
 
-Backend will be running at `http://localhost:3001`
-
-### Frontend Setup
-
-1. Navigate to frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create environment file:
-```bash
-cp .env.example .env
-```
-
-4. Update `.env`:
-```bash
-VITE_API_URL=http://localhost:3001
-```
-
-5. Start the development server:
-```bash
-npm run dev
-```
-
-Frontend will be running at `http://localhost:5173`
-
-## Usage
-
-1. Open `http://localhost:5173` in your browser
-2. Enter any email address to log in (no password required)
-3. Start adding clients and tracking work hours
-4. View reports and export data as CSV or PDF
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Login with email, returns JWT token
-- `GET /api/auth/me` - Get current user info (requires auth)
-
-### Clients
-- `GET /api/clients` - Get all clients
-- `POST /api/clients` - Create new client
-- `GET /api/clients/:id` - Get specific client
-- `PUT /api/clients/:id` - Update client
-- `DELETE /api/clients/:id` - Delete client
-
-### Work Entries
-- `GET /api/work-entries` - Get all work entries (optional ?clientId filter)
-- `POST /api/work-entries` - Create new work entry
-- `GET /api/work-entries/:id` - Get specific work entry
-- `PUT /api/work-entries/:id` - Update work entry
-- `DELETE /api/work-entries/:id` - Delete work entry
-
-### Reports
-- `GET /api/reports/client/:clientId` - Get hourly report for client
-- `GET /api/reports/export/csv/:clientId` - Export report as CSV
-- `GET /api/reports/export/pdf/:clientId` - Export report as PDF
-
-All authenticated endpoints require `Authorization: Bearer <token>` header.
-
-## Security Features
-
-- JWT-based authentication with 24-hour token expiration
-- Rate limiting on authentication endpoints (5 attempts per 15 minutes)
-- CORS protection
-- Helmet security headers
-- Input validation with Joi schemas
-- SQL injection protection with parameterized queries
-
-## Development
-
-### Backend Development
-```bash
-cd backend
-npm run dev  # Starts with nodemon for auto-reload
-```
-
-### Frontend Development
-```bash
-cd frontend
-npm run dev  # Starts Vite dev server with HMR
-```
-
-### Running Tests
-
-**Backend:**
-```bash
-cd backend
-npm test                    # Run all tests
-npm run test:coverage       # Run tests with coverage report
-npm run test:watch          # Run tests in watch mode
-```
-
-### Test Coverage
-
-The backend has comprehensive test coverage with **161 tests** across 8 test suites:
-
-| File | Statements | Branches | Functions | Lines |
-|------|------------|----------|-----------|-------|
-| **Overall** | **90.16%** | **93.82%** | **92.18%** | **90.35%** |
-| database/init.js | 100% | 100% | 100% | 100% |
-| middleware/auth.js | 100% | 100% | 100% | 100% |
-| middleware/errorHandler.js | 100% | 100% | 100% | 100% |
-| routes/auth.js | 100% | 100% | 100% | 100% |
-| routes/clients.js | 97.89% | 100% | 100% | 97.89% |
-| routes/workEntries.js | 98.41% | 100% | 100% | 98.41% |
-| routes/reports.js | 64.15% | 69.44% | 68.75% | 64.42% |
-| validation/schemas.js | 100% | 100% | 100% | 100% |
-
-Coverage thresholds are configured in `jest.config.js`:
-- Statements: 60%
-- Branches: 60%
-- Functions: 65%
-- Lines: 60%
+The app will be running at `http://localhost:3000`
 
 ### Building for Production
 
-**Backend:**
 ```bash
-cd backend
-npm start  # Production mode
+npm run build
+npm start
 ```
 
-**Frontend:**
-```bash
-cd frontend
-npm run build  # Creates optimized production build in dist/
-npm run preview  # Preview production build
-```
+## Usage
 
-## Production Deployment
+1. Open `http://localhost:3000` in your browser
+2. You'll be redirected to the login page
+3. Enter any email address to log in (no password required)
+4. Start adding clients and tracking work hours
+5. View reports and export data as CSV or PDF
 
-See `backend/DEPLOYMENT.md` for detailed production deployment instructions.
+## API Endpoints
 
-### Quick Production Checklist
-- [ ] Set strong `JWT_SECRET` in environment variables
-- [ ] Configure proper `FRONTEND_URL` for CORS
-- [ ] Consider switching to file-based SQLite for data persistence
-- [ ] Set up HTTPS/SSL certificates
-- [ ] Configure proper logging and monitoring
-- [ ] Set up automated backups (if using persistent storage)
-- [ ] Review and adjust rate limiting settings
-- [ ] Consider integrating with company SSO
+All API routes are Next.js Route Handlers under `app/api/`.
+
+### Authentication
+- `POST /api/auth/login` — Login with email, sets HTTP-only cookie
+- `GET /api/auth/me` — Get current user info
+- `POST /api/auth/logout` — Clear auth cookie
+
+### Clients
+- `GET /api/clients` — Get all clients for the authenticated user
+- `POST /api/clients` — Create new client
+- `GET /api/clients/:id` — Get specific client
+- `PUT /api/clients/:id` — Update client
+- `DELETE /api/clients/:id` — Delete client
+- `DELETE /api/clients` — Delete all clients for the user
+
+### Work Entries
+- `GET /api/work-entries` — Get all work entries (optional `?clientId=` filter)
+- `POST /api/work-entries` — Create new work entry
+- `GET /api/work-entries/:id` — Get specific work entry
+- `PUT /api/work-entries/:id` — Update work entry
+- `DELETE /api/work-entries/:id` — Delete work entry
+
+### Reports
+- `GET /api/reports/client/:clientId` — Get hourly report for client
+- `GET /api/reports/export/csv/:clientId` — Export report as CSV
+- `GET /api/reports/export/pdf/:clientId` — Export report as PDF
+
+All authenticated endpoints require a `user_email` HTTP-only cookie (set by login) or an `x-user-email` header.
+
+## Security Features
+
+- HTTP-only cookie authentication
+- Input validation with Joi schemas
+- SQL injection protection with parameterized queries
+- Auth proxy protects all routes except login and static assets
+- Multi-tenancy: users can only see their own data via `user_email` scoping
 
 ## Known Limitations
 
-1. **In-memory database** - All data is lost on server restart
-2. **Email-only auth** - No password protection, assumes trusted network
-3. **No user roles** - All users have equal access to all data
-4. **Single-server architecture** - Not designed for horizontal scaling
-5. **No real-time updates** - Changes require page refresh
+1. **In-memory database** — All data is lost on server restart
+2. **Email-only auth** — No password protection, assumes trusted network
+3. **No user roles** — All users have equal access to their own data
+4. **Single-server architecture** — Not designed for horizontal scaling
 
-## Future Enhancements
+## Architecture Notes
 
-- Persistent database storage
-- User roles and permissions
-- Multi-tenancy support
-- Real-time updates with WebSockets
-- Advanced reporting and analytics
-- Email notifications
-- Mobile app
-- Integration with calendar systems
+- Uses Next.js 16's `proxy.ts` convention (replaces deprecated `middleware.ts`)
+- MUI SSR is handled via `@mui/material-nextjs` `AppRouterCacheProvider`
+- Route group `(authenticated)` provides shared sidebar layout for protected pages
+- All page components are Client Components (`'use client'`) due to MUI interactivity
+- API routes use server-side SQLite directly (no separate backend needed)
 
 ## License
 
 MIT
-
-## Support
-
-For issues or questions, please contact your system administrator.

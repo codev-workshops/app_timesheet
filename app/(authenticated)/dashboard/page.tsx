@@ -74,8 +74,7 @@ export default function DashboardPage() {
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {statsCards.map((stat, index) => (
-          // @ts-expect-error - MUI Grid item prop type issue
-          <Grid item xs={12} sm={6} md={4} key={index}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
             <Card
               sx={{
                 cursor: 'pointer',
@@ -113,8 +112,7 @@ export default function DashboardPage() {
       </Grid>
 
       <Grid container spacing={3}>
-        {/* @ts-expect-error - MUI Grid item prop type issue */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={{ p: 3 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} gap={3}>
               <Typography variant="h6">Recent Work Entries</Typography>
@@ -153,8 +151,7 @@ export default function DashboardPage() {
           </Paper>
         </Grid>
 
-        {/* @ts-expect-error - MUI Grid item prop type issue */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" mb={2}>
               Quick Actions
