@@ -17,9 +17,21 @@ function newUser() {
 async function resolveExport(response) {
   if (process.env.EXPORT_BACKEND === 's3') {
     const object = await fetch(response.body.url);
-    return { status: response.status, bytes: Buffer.from(await object.arrayBuffer()) };
+    return {
+      status: response.status,
+      bytes: Buffer.from(await object.arrayBuffer()),
+      filename: response.body.filename,
+      key: response.body.key,
+      url: response.body.url
+    };
   }
-  return { status: response.status, bytes: response.body };
+  const contentDisposition = response.headers['content-disposition'] || '';
+  const match = contentDisposition.match(/filename="([^"]+)"/);
+  return {
+    status: response.status,
+    bytes: response.body,
+    filename: match && match[1]
+  };
 }
 
 function exportRequest(path) {
@@ -37,7 +49,19 @@ function exportRequest(path) {
 function normalizePdf(bytes) {
   return bytes
     .toString('binary')
+    // CreationDate, ModDate, and the derived ID are per-generation PDFKit
+    // values, not backend divergence; ID is a hash of the creation metadata.
+    .replace(/\/(CreationDate|ModDate) \(D:[^)]*\)/g, '/$1 (masked)')
+    .replace(/\/ID \[<[^>]+> <[^>]+>\]/g, '/ID [<masked> <masked>]')
     .replace(/Generated: [^\r\n()]*/, 'Generated: masked');
+}
+
+function expectExportMetadata(exportResult, extension) {
+  expect(exportResult.filename).toMatch(new RegExp(`^Export_Parity_Co_report_.+\\.${extension}$`));
+  if (process.env.EXPORT_BACKEND === 's3') {
+    expect(exportResult.key.startsWith(process.env.S3_KEY_PREFIX)).toBe(true);
+    expect(new URL(exportResult.url).searchParams.has('X-Amz-Signature')).toBe(true);
+  }
 }
 
 describeE2E(`export e2e (${process.env.EXPORT_BACKEND || 'local'})`, () => {
@@ -72,22 +96,33 @@ describeE2E(`export e2e (${process.env.EXPORT_BACKEND || 'local'})`, () => {
     return client;
   }
 
-  it('returns matching export status codes and content in each backend mode', async () => {
+  it('exports CSV bytes and metadata', async () => {
     const client = await createFixture();
     const csv = await resolveExport(await exportRequest(`/api/reports/export/csv/${client.id}`)
       .set('x-user-email', user));
-    const pdf = await resolveExport(await exportRequest(`/api/reports/export/pdf/${client.id}`)
-      .set('x-user-email', user));
     expect(csv.status).toBe(200);
+    expectExportMetadata(csv, 'csv');
     expect(csv.bytes.toString()).toContain('Date,Hours,Description,Created At');
     expect(csv.bytes.toString()).toContain('1705276800000,7.5,Parity work');
-    expect(pdf.status).toBe(200);
-    expect(pdf.bytes.subarray(0, 4).toString()).toBe('%PDF');
+  });
 
+  it('exports PDF bytes and metadata', async () => {
+    const client = await createFixture();
+    const pdf = await resolveExport(await exportRequest(`/api/reports/export/pdf/${client.id}`)
+      .set('x-user-email', user));
+    expect(pdf.status).toBe(200);
+    expectExportMetadata(pdf, 'pdf');
+    expect(pdf.bytes.subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  it('returns 400 for invalid export ids', async () => {
     const invalidCsv = await request(app).get('/api/reports/export/csv/not-an-id').set('x-user-email', user);
     const invalidPdf = await request(app).get('/api/reports/export/pdf/not-an-id').set('x-user-email', user);
     expect(invalidCsv.status).toBe(400);
     expect(invalidPdf.status).toBe(400);
+  });
+
+  it('returns 404 for unknown export clients', async () => {
     const missingCsv = await request(app).get('/api/reports/export/csv/999999').set('x-user-email', user);
     const missingPdf = await request(app).get('/api/reports/export/pdf/999999').set('x-user-email', user);
     expect(missingCsv.status).toBe(404);

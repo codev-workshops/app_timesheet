@@ -18,8 +18,9 @@ const {
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const client = new S3Client({});
-client.config.forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
+const client = new S3Client({
+  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true'
+});
 
 let systemClockOffset = 0;
 Object.defineProperty(client.config, 'systemClockOffset', {

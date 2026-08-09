@@ -153,8 +153,13 @@ router.get('/export/csv/:clientId', (req, res) => {
           csvWriter.writeRecords(workEntries)
             .then(() => {
               if (isS3Backend()) {
-                const csv = fs.readFileSync(tempPath);
-                return deliverExport({ body: csv, contentType: 'text/csv', filename, res })
+                return fs.promises.readFile(tempPath)
+                  .then((csv) => deliverExport({
+                    body: csv,
+                    contentType: 'text/csv',
+                    filename,
+                    res
+                  }))
                   .then(() => fs.unlink(tempPath, (unlinkErr) => {
                     if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
                   }));
@@ -220,13 +225,8 @@ router.get('/export/pdf/:clientId', (req, res) => {
           
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const filename = `${client.name.replace(/[^a-zA-Z0-9]/g, '_')}_report_${timestamp}.pdf`;
+          const doc = new PDFDocument();
           if (!isS3Backend()) {
-            const doc = new PDFDocument({
-              info: {
-                CreationDate: new Date('2000-01-01T00:00:00Z'),
-                ModDate: new Date('2000-01-01T00:00:00Z')
-              }
-            });
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
             doc.pipe(res);
@@ -234,12 +234,6 @@ router.get('/export/pdf/:clientId', (req, res) => {
             doc.end();
             return;
           }
-          const doc = new PDFDocument({
-            info: {
-              CreationDate: new Date('2000-01-01T00:00:00Z'),
-              ModDate: new Date('2000-01-01T00:00:00Z')
-            }
-          });
           const chunks = [];
           doc.on('data', (chunk) => chunks.push(chunk));
           doc.on('end', async () => {
