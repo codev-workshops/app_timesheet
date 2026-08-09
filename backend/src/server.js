@@ -1,11 +1,13 @@
 const app = require('./app');
 const { initializeDatabase } = require('./database/init');
+const { getJwtSecret } = require('./config/secrets');
 
 const PORT = process.env.PORT || 3001;
 
 // Initialize database and start server
 async function startServer() {
   try {
+    await getJwtSecret();
     await initializeDatabase();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

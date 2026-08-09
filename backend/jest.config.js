@@ -9,6 +9,10 @@ module.exports = {
     // DynamoDB backend is exercised by the emulator-backed e2e parity suite
     '!src/database/dynamoAdapter.js',
     '!src/database/dynamoTables.js',
+    // Secrets Manager backend is exercised by the emulator-backed e2e parity suite
+    '!src/config/secretsClient.js',
+    '!src/config/secrets.js',
+    '!src/config/secretsResources.js',
     '!**/node_modules/**'
   ],
   coverageReporters: ['text', 'lcov', 'html'],
