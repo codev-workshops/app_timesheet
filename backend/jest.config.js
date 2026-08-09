@@ -9,6 +9,8 @@ module.exports = {
     // DynamoDB backend is exercised by the emulator-backed e2e parity suite
     '!src/database/dynamoAdapter.js',
     '!src/database/dynamoTables.js',
+    '!src/storage/s3Adapter.js',
+    '!src/storage/exportStorage.js',
     '!**/node_modules/**'
   ],
   coverageReporters: ['text', 'lcov', 'html'],

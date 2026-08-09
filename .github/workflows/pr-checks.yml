@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - main
+      - 'devin/**'
 
 permissions:
   contents: read
@@ -53,6 +54,9 @@ jobs:
           AWS_ENDPOINT_URL: http://127.0.0.1:5001
           AWS_ACCESS_KEY_ID: testing
           AWS_SECRET_ACCESS_KEY: testing
+          S3_BUCKET: timesheet-export-tests
+          S3_KEY_PREFIX: ci/exports
+          S3_FORCE_PATH_STYLE: 'true'
         run: npm run test:parity
 
   security-audit:

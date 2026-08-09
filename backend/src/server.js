@@ -1,5 +1,6 @@
 const app = require('./app');
 const { initializeDatabase } = require('./database/init');
+const { initializeExportStorage } = require('./storage/exportStorage');
 
 const PORT = process.env.PORT || 3001;
 
@@ -7,6 +8,7 @@ const PORT = process.env.PORT || 3001;
 async function startServer() {
   try {
     await initializeDatabase();
+    await initializeExportStorage();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
