@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - main
+      # Include stacked Devin PRs for backend parity; frontend gates remain main-only.
       - 'devin/**'
 
 permissions:
@@ -58,7 +59,7 @@ jobs:
 
   security-audit:
     name: Security Audit (CVE Check)
-    if: "!contains(github.event.pull_request.user.login, 'devin')"
+    if: "!contains(github.event.pull_request.user.login, 'devin') && github.event.pull_request.base.ref == 'main'"
     runs-on: ubuntu-latest
     outputs:
       has_vulnerabilities: ${{ steps.audit.outputs.has_vulnerabilities }}
@@ -150,7 +151,7 @@ jobs:
 
   test-coverage:
     name: Quality Gate (Test Coverage)
-    if: "!contains(github.event.pull_request.user.login, 'devin')"
+    if: "!contains(github.event.pull_request.user.login, 'devin') && github.event.pull_request.base.ref == 'main'"
     runs-on: ubuntu-latest
     outputs:
       coverage_failed: ${{ steps.coverage.outputs.coverage_failed }}
@@ -247,6 +248,7 @@ jobs:
     if: |
       always() &&
       !contains(github.event.pull_request.user.login, 'devin') &&
+      github.event.pull_request.base.ref == 'main' &&
       (needs.security-audit.result == 'failure' || needs.test-coverage.result == 'failure')
     runs-on: ubuntu-latest
 
