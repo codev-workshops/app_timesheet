@@ -115,9 +115,7 @@ describeE2E(`secrets e2e (${backend})`, () => {
     expect(deleted.status).toBe(200);
   });
 
-  it('uses the configured unique secret name in AWS mode', () => {
-    if (backend === 'aws') {
-      expect(secretName()).toMatch(/^e2e-\d+-\d+-timesheet\/jwt-secret$/);
-    }
+  it('uses the configured unique secret name in both backends', () => {
+    expect(secretName()).toMatch(/^e2e-\d+-\d+-timesheet\/jwt-secret$/);
   });
 });
