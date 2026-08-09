@@ -9,6 +9,12 @@ module.exports = {
     // DynamoDB backend is exercised by the emulator-backed e2e parity suite
     '!src/database/dynamoAdapter.js',
     '!src/database/dynamoTables.js',
+    // Emulator-only report worker modules are exercised by the e2e suite.
+    '!src/reports/sqsClient.js',
+    '!src/reports/queue.js',
+    '!src/reports/worker.js',
+    '!src/reports/workerMain.js',
+    '!src/routes/reportJobs.js',
     '!**/node_modules/**'
   ],
   coverageReporters: ['text', 'lcov', 'html'],

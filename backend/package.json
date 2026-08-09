@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "worker:reports": "node src/reports/workerMain.js",
     "dev": "nodemon src/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -14,12 +15,16 @@
     "test:ci": "jest --coverage --ci --maxWorkers=2",
     "test:e2e:sqlite": "DB_BACKEND=sqlite RUN_E2E=1 RATE_LIMIT_MAX=100000 jest --env ./src/__tests__/e2e/environment.js src/__tests__/e2e",
     "test:e2e:dynamo": "DB_BACKEND=dynamodb AWS_REGION=us-east-1 AWS_ENDPOINT_URL=http://127.0.0.1:5001 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test RUN_E2E=1 RATE_LIMIT_MAX=100000 jest --env ./src/__tests__/e2e/environment.js src/__tests__/e2e",
-    "test:parity": "npm test && npm run test:e2e:sqlite && npm run test:e2e:dynamo",
+    "test:e2e:reports:sync": "REPORTS_BACKEND=sync DB_BACKEND=sqlite RUN_E2E=1 RATE_LIMIT_MAX=100000 jest --env ./src/__tests__/e2e/environment.js src/__tests__/e2e/reportJobs.e2e.test.js",
+    "test:e2e:reports:sqs:sqlite": "REPORTS_BACKEND=sqs SQS_QUEUE_PREFIX=reports-sqlite-$(date +%s%N)- SQS_VISIBILITY_TIMEOUT=0 DB_BACKEND=sqlite AWS_REGION=us-east-1 AWS_ENDPOINT_URL=http://127.0.0.1:5001 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test RUN_E2E=1 RATE_LIMIT_MAX=100000 jest --env ./src/__tests__/e2e/environment.js src/__tests__/e2e/reportJobs.e2e.test.js",
+    "test:e2e:reports:sqs:dynamo": "REPORTS_BACKEND=sqs SQS_QUEUE_PREFIX=reports-dynamo-$(date +%s%N)- SQS_VISIBILITY_TIMEOUT=0 DB_BACKEND=dynamodb AWS_REGION=us-east-1 AWS_ENDPOINT_URL=http://127.0.0.1:5001 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test RUN_E2E=1 RATE_LIMIT_MAX=100000 jest --env ./src/__tests__/e2e/environment.js src/__tests__/e2e/reportJobs.e2e.test.js",
+    "test:parity": "npm test && npm run test:e2e:sqlite && npm run test:e2e:dynamo && npm run test:e2e:reports:sync && npm run test:e2e:reports:sqs:sqlite && npm run test:e2e:reports:sqs:dynamo",
     "moto-up": "scripts/moto.sh up",
     "moto-down": "scripts/moto.sh down"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1106.0",
+    "@aws-sdk/client-sqs": "^3.1106.0",
     "@aws-sdk/lib-dynamodb": "^3.1106.0",
     "cors": "^2.8.5",
     "csv-writer": "^1.6.0",

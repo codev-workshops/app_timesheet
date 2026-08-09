@@ -32,10 +32,17 @@ const emailSchema = Joi.object({
   email: Joi.string().email().required()
 });
 
+const reportJobSchema = Joi.object({
+  // Keep this untyped so invalid IDs use the reports routes' Invalid client ID response.
+  clientId: Joi.any().required(),
+  format: Joi.string().valid('csv', 'pdf').required()
+});
+
 module.exports = {
   clientSchema,
   workEntrySchema,
   updateWorkEntrySchema,
   updateClientSchema,
-  emailSchema
+  emailSchema,
+  reportJobSchema
 };
