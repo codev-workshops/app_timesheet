@@ -11,6 +11,50 @@ permissions:
   pull-requests: write
 
 jobs:
+  backend-parity:
+    name: Backend Parity (SQLite vs DynamoDB)
+    runs-on: ubuntu-latest
+
+    services:
+      moto:
+        image: motoserver/moto:5.0.18
+        ports:
+          - 5001:5000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Wait for the DynamoDB emulator
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5001/moto-api/ >/dev/null 2>&1; then
+              echo "moto is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "moto did not become healthy" >&2
+          exit 1
+
+      - name: Run unit + e2e parity suites
+        working-directory: backend
+        env:
+          AWS_REGION: us-east-1
+          AWS_ENDPOINT_URL: http://127.0.0.1:5001
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+        run: npm run test:parity
+
   security-audit:
     name: Security Audit (CVE Check)
     if: "!contains(github.event.pull_request.user.login, 'devin')"

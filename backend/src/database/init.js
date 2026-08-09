@@ -5,7 +5,20 @@ let db = null;
 let isClosing = false;
 let isClosed = false;
 
+function isDynamoBackend() {
+  return (process.env.DB_BACKEND || 'sqlite').toLowerCase() === 'dynamodb';
+}
+
+function getDynamoAdapter() {
+  // Required lazily so the AWS SDK is only loaded in DynamoDB mode.
+  return require('./dynamoAdapter').adapter;
+}
+
 function getDatabase() {
+  if (isDynamoBackend()) {
+    return getDynamoAdapter();
+  }
+
   if (!db) {
     // Reset state when creating a new database connection
     isClosing = false;
@@ -23,6 +36,13 @@ function getDatabase() {
 }
 
 async function initializeDatabase() {
+  if (isDynamoBackend()) {
+    const { createTables } = require('./dynamoTables');
+    await createTables();
+    console.log('DynamoDB tables created successfully');
+    return;
+  }
+
   const database = getDatabase();
   
   return new Promise((resolve, reject) => {
@@ -79,6 +99,11 @@ async function initializeDatabase() {
 }
 
 function closeDatabase() {
+  if (isDynamoBackend()) {
+    // Nothing to close: the DynamoDB client is stateless.
+    return Promise.resolve();
+  }
+
   return new Promise((resolve, reject) => {
     if (isClosed) {
       // Already closed, resolve immediately

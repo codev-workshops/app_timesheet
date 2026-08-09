@@ -5,6 +5,10 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/server.js', // Exclude server startup file
+    '!src/app.js', // Exclude express app wiring
+    // DynamoDB backend is exercised by the emulator-backed e2e parity suite
+    '!src/database/dynamoAdapter.js',
+    '!src/database/dynamoTables.js',
     '!**/node_modules/**'
   ],
   coverageReporters: ['text', 'lcov', 'html'],
