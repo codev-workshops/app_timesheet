@@ -1,0 +1,312 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-audit:
+    name: Security Audit (CVE Check)
+    if: "!contains(github.event.pull_request.user.login, 'devin')"
+    runs-on: ubuntu-latest
+    outputs:
+      has_vulnerabilities: ${{ steps.audit.outputs.has_vulnerabilities }}
+      total_severe: ${{ steps.audit.outputs.total_severe }}
+      high: ${{ steps.audit.outputs.high }}
+      critical: ${{ steps.audit.outputs.critical }}
+      vuln_details: ${{ steps.audit.outputs.vuln_details }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run npm audit
+        id: audit
+        working-directory: frontend
+        continue-on-error: true
+        run: |
+          set +e
+          AUDIT_OUTPUT=$(npm audit --json 2>&1)
+          echo "$AUDIT_OUTPUT" > /tmp/audit-results.json
+
+          HIGH=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.high // 0')
+          CRITICAL=$(echo "$AUDIT_OUTPUT" | jq -r '.metadata.vulnerabilities.critical // 0')
+          TOTAL_SEVERE=$((HIGH + CRITICAL))
+
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "total_severe=$TOTAL_SEVERE" >> "$GITHUB_OUTPUT"
+
+          VULN_DETAILS=$(echo "$AUDIT_OUTPUT" | jq -r '
+            .vulnerabilities | to_entries[] |
+            select(.value.severity == "high" or .value.severity == "critical") |
+            "- [\(.value.severity | ascii_upcase)] \(.key)@\(.value.range): \(.value.via | if type == "array" then (map(if type == "object" then .title // .url else . end) | join(", ")) else . end)"
+          ' 2>/dev/null || echo "Could not parse vulnerability details")
+
+          # Pass vuln details via output (escape newlines)
+          {
+            echo "vuln_details<<VULN_EOF"
+            echo "$VULN_DETAILS"
+            echo "VULN_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$TOTAL_SEVERE" -gt 0 ]; then
+            echo "has_vulnerabilities=true" >> "$GITHUB_OUTPUT"
+            echo "Found $TOTAL_SEVERE high/critical vulnerabilities"
+            echo "$VULN_DETAILS"
+            exit 1
+          else
+            echo "has_vulnerabilities=false" >> "$GITHUB_OUTPUT"
+            echo "No high/critical vulnerabilities found."
+          fi
+
+      - name: Comment findings on PR
+        if: steps.audit.outcome == 'failure' && steps.audit.outputs.has_vulnerabilities == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT=$(cat <<'EOF'
+          ## Security Audit Failed – CVE Detection
+
+          **npm audit** found **${{ steps.audit.outputs.total_severe }} high/critical vulnerability(ies)** (${{ steps.audit.outputs.high }} high, ${{ steps.audit.outputs.critical }} critical) in `frontend/` dependencies.
+
+          ### Vulnerabilities
+
+          ${{ steps.audit.outputs.vuln_details }}
+
+          ### Recommended Fix
+
+          In the `frontend/` directory, upgrade the affected packages to patched versions. Run `npm audit fix` or manually bump versions in `package.json`, then verify with `npm audit` and `npm run build`.
+          EOF
+          )
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+      - name: Fail if vulnerabilities found
+        if: steps.audit.outputs.has_vulnerabilities == 'true'
+        run: |
+          echo "Failing job: ${{ steps.audit.outputs.total_severe }} high/critical vulnerabilities found."
+          exit 1
+
+  test-coverage:
+    name: Quality Gate (Test Coverage)
+    if: "!contains(github.event.pull_request.user.login, 'devin')"
+    runs-on: ubuntu-latest
+    outputs:
+      coverage_failed: ${{ steps.coverage.outputs.coverage_failed }}
+      coverage_failures: ${{ steps.coverage.outputs.coverage_failures }}
+      coverage_table: ${{ steps.coverage.outputs.coverage_table }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run tests with coverage
+        id: coverage
+        working-directory: frontend
+        continue-on-error: true
+        run: |
+          set +e
+          COVERAGE_OUTPUT=$(npm run test:coverage 2>&1)
+          COVERAGE_EXIT=$?
+
+          echo "$COVERAGE_OUTPUT"
+
+          if [ $COVERAGE_EXIT -ne 0 ]; then
+            FAILURES=$(echo "$COVERAGE_OUTPUT" | grep "^ERROR:" || true)
+            TABLE=$(echo "$COVERAGE_OUTPUT" | sed -n '/^-\{5,\}/,/^-\{5,\}$/p')
+
+            echo "coverage_failed=true" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "coverage_failures<<FAIL_EOF"
+              echo "$FAILURES"
+              echo "FAIL_EOF"
+            } >> "$GITHUB_OUTPUT"
+
+            {
+              echo "coverage_table<<TABLE_EOF"
+              echo "$TABLE"
+              echo "TABLE_EOF"
+            } >> "$GITHUB_OUTPUT"
+
+            echo "::warning::Test coverage is below the 80% threshold."
+          else
+            echo "coverage_failed=false" >> "$GITHUB_OUTPUT"
+            echo "All coverage thresholds met."
+          fi
+
+      - name: Comment findings on PR
+        if: steps.coverage.outputs.coverage_failed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT=$(cat <<'EOF'
+          ## Quality Gate Warning – Test Coverage
+
+          Unit test coverage is below the recommended **80% threshold** for `frontend/src/components/`.
+
+          ### Coverage Failures
+
+          ```
+          ${{ steps.coverage.outputs.coverage_failures }}
+          ```
+
+          ### Coverage Report
+
+          ```
+          ${{ steps.coverage.outputs.coverage_table }}
+          ```
+
+          ### Recommended Fix
+
+          Add unit tests in `frontend/src/components/__tests__/` to bring coverage above 80% for branches, functions, lines, and statements. Use vitest with `@testing-library/react`. Do not modify source components or lower the thresholds in `vite.config.ts`.
+          EOF
+          )
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+
+  trigger-devin-cve-fix:
+    name: Trigger Devin CVE Auto-Fix
+    needs: [security-audit]
+    if: |
+      always() &&
+      github.event.pull_request.user.login == 'bsmitches' &&
+      needs.security-audit.result == 'failure'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for prior Devin CVE fix attempt
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DEVIN_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --paginate \
+            --jq '[.[] | select(.body | contains("Devin CVE Auto-Fix"))] | length')
+
+          if [ "$DEVIN_COMMENTS" -gt 0 ]; then
+            echo "Devin has already attempted a CVE fix on this PR. Skipping (max 1 attempt)."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Invoke Devin v3 API to fix CVEs
+        if: steps.guard.outputs.should_run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
+          CREATE_AS_USER_ID: ${{ secrets.DEVIN_CREATE_AS_USER_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+          AUDIT_TOTAL: ${{ needs.security-audit.outputs.total_severe }}
+          AUDIT_DETAILS: ${{ needs.security-audit.outputs.vuln_details }}
+        run: |
+          PROMPT=$(cat <<PROMPT_END
+          The npm security audit on PR #${PR_NUMBER} in repository ${REPO} on branch '${PR_BRANCH}' found ${AUDIT_TOTAL} high/critical CVE(s) in frontend dependencies.
+
+          This branch has a security issue identified by npm audit. Please correct it — this is a one-time automated remediation attempt before the PR is merged.
+
+          Vulnerabilities found:
+          ${AUDIT_DETAILS}
+
+          Instructions:
+          1. Clone the repository ${REPO} and checkout branch '${PR_BRANCH}'.
+          2. In the frontend/ directory, review package.json and package-lock.json.
+          3. For each high/critical vulnerability, upgrade the affected package to a patched version that resolves the CVE.
+          4. Run \`npm audit\` to verify the fixes resolve the CVEs.
+          5. Run \`npm run build\` to ensure nothing is broken.
+          6. Run \`npm run test\` to ensure existing tests still pass.
+          7. Commit the fix with message: "fix: remediate npm audit CVEs on PR #${PR_NUMBER}"
+          8. Push to branch '${PR_BRANCH}'.
+
+          Constraints:
+          - Only fix security vulnerabilities — do not refactor unrelated code.
+          - Prefer minimal version bumps that resolve the CVE.
+          - This is a ONE-TIME remediation attempt. Make it count.
+          PROMPT_END
+          )
+
+          ESCAPED_PROMPT=$(echo "$PROMPT" | jq -Rs .)
+
+          REQUEST_BODY=$(jq -n \
+            --argjson prompt "$ESCAPED_PROMPT" \
+            --arg title "Remediate npm audit CVEs on PR #${PR_NUMBER}" \
+            --arg repo "$REPO" \
+            --arg user_id "${CREATE_AS_USER_ID}" \
+            '{
+              prompt: $prompt,
+              title: $title,
+              repos: [$repo],
+              create_as_user_id: $user_id,
+              tags: ["cve-fix", "npm-audit", "security", "automated"]
+            }')
+
+          HTTP_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+            -H "Authorization: Bearer ${DEVIN_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$REQUEST_BODY" \
+            "https://api.devin.ai/v3/organizations/${DEVIN_ORG_ID}/sessions")
+
+          HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed '/^HTTP_STATUS:/d')
+          HTTP_CODE=$(echo "$HTTP_RESPONSE" | grep '^HTTP_STATUS:' | cut -d: -f2)
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            SESSION_URL=$(echo "$HTTP_BODY" | jq -r '.url')
+            SESSION_ID=$(echo "$HTTP_BODY" | jq -r '.session_id')
+            echo "Devin session created: ${SESSION_URL}"
+            echo "Session ID: ${SESSION_ID}"
+
+            {
+              echo "## Devin CVE Auto-Fix Triggered"
+              echo ""
+              echo "npm audit found ${AUDIT_TOTAL} high/critical CVE(s) on PR #${PR_NUMBER}."
+              echo "A Devin session has been created for a one-time remediation attempt."
+              echo ""
+              echo "**Session:** ${SESSION_URL}"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            COMMENT=$(cat <<EOF
+          ## Devin CVE Auto-Fix — Remediation In Progress
+
+          npm audit identified ${AUDIT_TOTAL} high/critical vulnerability(ies) in frontend dependencies. A Devin session has been automatically created for a **one-time remediation attempt** before merge.
+
+          **Devin Session:** ${SESSION_URL}
+
+          Devin will commit the fix directly to branch \`${PR_BRANCH}\`.
+          EOF
+            )
+
+            gh api repos/${REPO}/issues/${PR_NUMBER}/comments -f body="$COMMENT"
+          else
+            echo "::error::Failed to create Devin session (HTTP ${HTTP_CODE})"
+            echo "$HTTP_BODY"
+            exit 1
+          fi

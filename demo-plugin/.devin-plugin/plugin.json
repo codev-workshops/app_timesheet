@@ -1,0 +1,5 @@
+{
+  "name": "timesheet-tools",
+  "version": "1.0.0",
+  "description": "Demo plugin bundling a standup-report skill for timesheet-app"
+}

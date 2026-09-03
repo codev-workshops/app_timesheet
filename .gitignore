@@ -1,0 +1,4 @@
+# Personal Devin overrides (never committed)
+AGENTS.local.md
+.devin/mcp_config.local.json
+.devin/config.local.json
