@@ -2,7 +2,6 @@ const request = require('supertest');
 const express = require('express');
 const { getDatabase } = require('../../database/init');
 const fs = require('fs');
-const path = require('path');
 
 jest.mock('../../database/init');
 jest.mock('fs');
