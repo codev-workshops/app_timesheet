@@ -1,5 +1,4 @@
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
 let db = null;
 let isClosing = false;
@@ -25,7 +24,7 @@ function getDatabase() {
 async function initializeDatabase() {
   const database = getDatabase();
   
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     database.serialize(() => {
       // Create users table
       database.run(`
@@ -79,7 +78,7 @@ async function initializeDatabase() {
 }
 
 function closeDatabase() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (isClosed) {
       // Already closed, resolve immediately
       resolve();

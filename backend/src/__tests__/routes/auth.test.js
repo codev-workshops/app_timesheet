@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 // Add error handler for Joi validation
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   if (err.isJoi) {
     return res.status(400).json({ error: 'Validation error' });
   }
