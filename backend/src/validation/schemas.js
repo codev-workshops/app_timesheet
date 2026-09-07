@@ -21,6 +21,10 @@ const updateWorkEntrySchema = Joi.object({
   date: Joi.date().iso().optional()
 }).min(1); // At least one field must be provided
 
+const workEntryQuerySchema = Joi.object({
+  clientId: Joi.number().integer().positive().optional()
+});
+
 const updateClientSchema = Joi.object({
   name: Joi.string().trim().min(1).max(255).optional(),
   description: Joi.string().trim().max(1000).optional().allow(''),
@@ -36,6 +40,7 @@ module.exports = {
   clientSchema,
   workEntrySchema,
   updateWorkEntrySchema,
+  workEntryQuerySchema,
   updateClientSchema,
   emailSchema
 };
