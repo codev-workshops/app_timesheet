@@ -1,7 +1,7 @@
 const express = require('express');
 const { getDatabase } = require('../database/init');
 const { authenticateUser } = require('../middleware/auth');
-const { workEntrySchema, updateWorkEntrySchema } = require('../validation/schemas');
+const { workEntrySchema, updateWorkEntrySchema, workEntryQuerySchema } = require('../validation/schemas');
 
 const router = express.Router();
 
@@ -10,7 +10,12 @@ router.use(authenticateUser);
 
 // Get all work entries for authenticated user (with optional client filter)
 router.get('/', (req, res) => {
-  const { clientId } = req.query;
+  const { error, value } = workEntryQuerySchema.validate(req.query);
+  if (error) {
+    return res.status(400).json({ error: 'Invalid client ID' });
+  }
+
+  const { clientId } = value;
   const db = getDatabase();
   
   let query = `
@@ -23,13 +28,9 @@ router.get('/', (req, res) => {
   
   const params = [req.userEmail];
   
-  if (clientId) {
-    const clientIdNum = parseInt(clientId);
-    if (isNaN(clientIdNum)) {
-      return res.status(400).json({ error: 'Invalid client ID' });
-    }
+  if (clientId !== undefined) {
     query += ' AND we.client_id = ?';
-    params.push(clientIdNum);
+    params.push(clientId);
   }
   
   query += ' ORDER BY we.date DESC, we.created_at DESC';
@@ -117,8 +118,8 @@ router.post('/', (req, res, next) => {
                       we.created_at, we.updated_at, c.name as client_name
                FROM work_entries we
                JOIN clients c ON we.client_id = c.id
-               WHERE we.id = ?`,
-              [this.lastID],
+               WHERE we.id = ? AND we.user_email = ?`,
+              [this.lastID, req.userEmail],
               (err, row) => {
                 if (err) {
                   console.error('Database error:', err);
@@ -234,8 +235,8 @@ router.put('/:id', (req, res, next) => {
                       we.created_at, we.updated_at, c.name as client_name
                FROM work_entries we
                JOIN clients c ON we.client_id = c.id
-               WHERE we.id = ?`,
-              [workEntryId],
+               WHERE we.id = ? AND we.user_email = ?`,
+              [workEntryId, req.userEmail],
               (err, row) => {
                 if (err) {
                   console.error('Database error:', err);

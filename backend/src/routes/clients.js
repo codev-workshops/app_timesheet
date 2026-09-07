@@ -76,8 +76,8 @@ router.post('/', (req, res, next) => {
 
         // Return the created client
         db.get(
-          'SELECT id, name, description, department, email, created_at, updated_at FROM clients WHERE id = ?',
-          [this.lastID],
+          'SELECT id, name, description, department, email, created_at, updated_at FROM clients WHERE id = ? AND user_email = ?',
+          [this.lastID, req.userEmail],
           (err, row) => {
             if (err) {
               console.error('Database error:', err);
@@ -164,8 +164,8 @@ router.put('/:id', (req, res, next) => {
 
           // Return updated client
           db.get(
-            'SELECT id, name, description, department, email, created_at, updated_at FROM clients WHERE id = ?',
-            [clientId],
+            'SELECT id, name, description, department, email, created_at, updated_at FROM clients WHERE id = ? AND user_email = ?',
+            [clientId, req.userEmail],
             (err, row) => {
               if (err) {
                 console.error('Database error:', err);
