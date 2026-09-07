@@ -1,0 +1,14 @@
+{
+  "name": "timesheet-e2e",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "E2E_HEADED=1 playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^26.4.1"
+  },
+  "private": true
+}
