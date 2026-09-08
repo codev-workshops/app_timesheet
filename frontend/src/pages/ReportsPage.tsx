@@ -51,13 +51,15 @@ const ReportsPage: React.FC = () => {
 
   const handleExportCsv = async () => {
     if (!selectedClientId) return;
-    
+
     try {
       const blob = await apiClient.exportClientReportCsv(selectedClientId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const client = clients.find((c: { id: number; name: string }) => c.id === selectedClientId);
+      const client = clients.find(
+        (c: { id: number; name: string }) => c.id === selectedClientId,
+      );
       a.download = `${client?.name?.replace(/[^a-zA-Z0-9]/g, '_')}_report_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
@@ -77,7 +79,9 @@ const ReportsPage: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const client = clients.find((c: { id: number; name: string }) => c.id === selectedClientId);
+      const client = clients.find(
+        (c: { id: number; name: string }) => c.id === selectedClientId,
+      );
       a.download = `${client?.name?.replace(/[^a-zA-Z0-9]/g, '_')}_report_${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
@@ -89,11 +93,18 @@ const ReportsPage: React.FC = () => {
     }
   };
 
-  const selectedClient = clients.find((c: { id: number; name: string }) => c.id === selectedClientId);
+  const selectedClient = clients.find(
+    (c: { id: number; name: string }) => c.id === selectedClientId,
+  );
 
   if (clientsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -129,7 +140,9 @@ const ReportsPage: React.FC = () => {
                   <InputLabel>Select Client</InputLabel>
                   <Select
                     value={selectedClientId}
-                    onChange={(e) => setSelectedClientId(Number(e.target.value))}
+                    onChange={(e) =>
+                      setSelectedClientId(Number(e.target.value))
+                    }
                     label="Select Client"
                   >
                     <MenuItem value={0}>Choose a client...</MenuItem>
@@ -169,16 +182,21 @@ const ReportsPage: React.FC = () => {
           </Paper>
 
           {selectedClient && reportLoading && (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              minHeight="200px"
+            >
               <CircularProgress />
             </Box>
           )}
 
           {selectedClient && report && (
             <>
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <Card>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
                         Total Hours
@@ -208,7 +226,9 @@ const ReportsPage: React.FC = () => {
                         Average Hours per Entry
                       </Typography>
                       <Typography variant="h4" component="div">
-                        {report.entryCount > 0 ? (report.totalHours / report.entryCount).toFixed(2) : '0.00'}
+                        {report.entryCount > 0
+                          ? (report.totalHours / report.entryCount).toFixed(2)
+                          : '0.00'}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -236,24 +256,36 @@ const ReportsPage: React.FC = () => {
                               </Typography>
                             </TableCell>
                             <TableCell>
-                              <Chip 
-                                label={`${entry.hours} hours`} 
-                                color="primary" 
-                                variant="outlined" 
+                              <Chip
+                                label={`${entry.hours} hours`}
+                                color="primary"
+                                variant="outlined"
                               />
                             </TableCell>
                             <TableCell>
                               {entry.description ? (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
                                   {entry.description}
                                 </Typography>
                               ) : (
-                                <Chip label="No description" size="small" variant="outlined" />
+                                <Chip
+                                  label="No description"
+                                  size="small"
+                                  variant="outlined"
+                                />
                               )}
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" color="text.secondary">
-                                {new Date(entry.created_at).toLocaleDateString()}
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {new Date(
+                                  entry.created_at,
+                                ).toLocaleDateString()}
                               </Typography>
                             </TableCell>
                           </TableRow>

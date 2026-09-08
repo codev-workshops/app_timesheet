@@ -22,7 +22,7 @@ describe('Auth Routes', () => {
   beforeEach(() => {
     mockDb = {
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn(),
     };
     getDatabase.mockReturnValue(mockDb);
   });
@@ -35,7 +35,7 @@ describe('Auth Routes', () => {
     test('should login existing user', async () => {
       const existingUser = {
         email: 'existing@example.com',
-        created_at: '2024-01-01T00:00:00.000Z'
+        created_at: '2024-01-01T00:00:00.000Z',
       };
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -56,7 +56,7 @@ describe('Auth Routes', () => {
         callback(null, null); // User doesn't exist
       });
 
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         callback.call(this, null);
       });
 
@@ -65,12 +65,14 @@ describe('Auth Routes', () => {
         .send({ email: 'newuser@example.com' });
 
       expect(response.status).toBe(201);
-      expect(response.body.message).toBe('User created and logged in successfully');
+      expect(response.body.message).toBe(
+        'User created and logged in successfully',
+      );
       expect(response.body.user.email).toBe('newuser@example.com');
       expect(mockDb.run).toHaveBeenCalledWith(
         'INSERT INTO users (email) VALUES (?)',
         ['newuser@example.com'],
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -84,9 +86,7 @@ describe('Auth Routes', () => {
     });
 
     test('should return 400 for missing email', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({});
+      const response = await request(app).post('/api/auth/login').send({});
 
       expect(response.status).toBe(400);
       expect(response.body.error).toBe('Validation error');
@@ -140,7 +140,7 @@ describe('Auth Routes', () => {
     test('should return current user info', async () => {
       const user = {
         email: 'test@example.com',
-        created_at: '2024-01-01T00:00:00.000Z'
+        created_at: '2024-01-01T00:00:00.000Z',
       };
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -160,7 +160,9 @@ describe('Auth Routes', () => {
       const response = await request(app).get('/api/auth/me');
 
       expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'User email required in x-user-email header' });
+      expect(response.body).toEqual({
+        error: 'User email required in x-user-email header',
+      });
     });
 
     test('should return 404 if user not found', async () => {

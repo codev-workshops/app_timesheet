@@ -14,10 +14,12 @@ A Node.js/Express backend API for employee time tracking application with SQLite
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/login` - User login with email
 - `GET /api/auth/me` - Get current user info
 
 ### Clients
+
 - `GET /api/clients` - Get all clients for authenticated user
 - `POST /api/clients` - Create new client
 - `GET /api/clients/:id` - Get specific client
@@ -25,6 +27,7 @@ A Node.js/Express backend API for employee time tracking application with SQLite
 - `DELETE /api/clients/:id` - Delete client
 
 ### Work Entries
+
 - `GET /api/work-entries` - Get all work entries (with optional client filter)
 - `POST /api/work-entries` - Create new work entry
 - `GET /api/work-entries/:id` - Get specific work entry
@@ -32,6 +35,7 @@ A Node.js/Express backend API for employee time tracking application with SQLite
 - `DELETE /api/work-entries/:id` - Delete work entry
 
 ### Reports
+
 - `GET /api/reports/client/:clientId` - Get hourly report for specific client
 - `GET /api/reports/export/csv/:clientId` - Export client report as CSV
 - `GET /api/reports/export/pdf/:clientId` - Export client report as PDF
@@ -39,21 +43,25 @@ A Node.js/Express backend API for employee time tracking application with SQLite
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Copy environment variables:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
 
 4. For production:
+
 ```bash
 npm start
 ```
@@ -63,6 +71,7 @@ npm start
 The API uses simple email-based authentication. Include the user's email in the `x-user-email` header for all authenticated requests.
 
 Example:
+
 ```
 x-user-email: user@company.com
 ```
@@ -70,10 +79,12 @@ x-user-email: user@company.com
 ## Database Schema
 
 ### Users
+
 - `email` (TEXT, PRIMARY KEY)
 - `created_at` (DATETIME)
 
 ### Clients
+
 - `id` (INTEGER, PRIMARY KEY)
 - `name` (TEXT, NOT NULL)
 - `description` (TEXT)
@@ -82,6 +93,7 @@ x-user-email: user@company.com
 - `updated_at` (DATETIME)
 
 ### Work Entries
+
 - `id` (INTEGER, PRIMARY KEY)
 - `client_id` (INTEGER, FOREIGN KEY)
 - `user_email` (TEXT, FOREIGN KEY)

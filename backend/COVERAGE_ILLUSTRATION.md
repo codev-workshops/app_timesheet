@@ -21,6 +21,7 @@
 ## 📦 Module Coverage Breakdown
 
 ### 🗄️ Database Module
+
 ```
 ┌────────────────────────────────────────────┐
 │  DATABASE (init.js)                        │
@@ -42,6 +43,7 @@ Uncovered:
 ```
 
 ### 🔐 Middleware Module
+
 ```
 ┌────────────────────────────────────────────┐
 │  MIDDLEWARE                                │
@@ -65,6 +67,7 @@ errorHandler.js (100%)
 ```
 
 ### 🛣️ Routes Module
+
 ```
 ┌────────────────────────────────────────────┐
 │  ROUTES                                    │
@@ -108,6 +111,7 @@ reports.js (50.94%)
 ```
 
 ### ✅ Validation Module
+
 ```
 ┌────────────────────────────────────────────┐
 │  VALIDATION (schemas.js)                   │
@@ -246,7 +250,7 @@ Coverage Progression:
   Initial:  0%    ░░░░░░░░░░░░░░░░░░░░░░░░░
   Current:  79%   ████████████████████░░░░░
   Target:   60%   ████████████░░░░░░░░░░░░░
-  
+
   Status: 🎯 EXCEEDED TARGET BY 19%
 ```
 

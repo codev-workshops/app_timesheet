@@ -34,7 +34,10 @@ const DashboardPage: React.FC = () => {
   const clients = clientsData?.clients || [];
   const workEntries = workEntriesData?.workEntries || [];
 
-  const totalHours = workEntries.reduce((sum: number, entry: { hours: number }) => sum + entry.hours, 0);
+  const totalHours = workEntries.reduce(
+    (sum: number, entry: { hours: number }) => sum + entry.hours,
+    0,
+  );
   const recentEntries = workEntries.slice(0, 5);
 
   const statsCards = [
@@ -82,7 +85,12 @@ const DashboardPage: React.FC = () => {
               onClick={stat.action}
             >
               <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between" gap={3}>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap={3}
+                >
                   <Box>
                     <Typography color="textSecondary" gutterBottom variant="h6">
                       {stat.title}
@@ -113,7 +121,13 @@ const DashboardPage: React.FC = () => {
         {/* @ts-expect-error - MUI Grid item prop type issue */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} gap={3}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={2}
+              gap={3}
+            >
               <Typography variant="h6">Recent Work Entries</Typography>
               <Button
                 variant="outlined"
@@ -125,21 +139,37 @@ const DashboardPage: React.FC = () => {
               </Button>
             </Box>
             {recentEntries.length > 0 ? (
-              recentEntries.map((entry: { id: number; client_name: string; hours: number; date: string; description?: string }) => (
-                <Box key={entry.id} sx={{ mb: 2, pb: 2, borderBottom: '1px solid #eee' }}>
-                  <Typography variant="subtitle1">{entry.client_name}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {entry.hours} hours - {new Date(entry.date).toLocaleDateString()}
-                  </Typography>
-                  {entry.description && (
-                    <Typography variant="body2" sx={{ mt: 1 }}>
-                      {entry.description}
+              recentEntries.map(
+                (entry: {
+                  id: number;
+                  client_name: string;
+                  hours: number;
+                  date: string;
+                  description?: string;
+                }) => (
+                  <Box
+                    key={entry.id}
+                    sx={{ mb: 2, pb: 2, borderBottom: '1px solid #eee' }}
+                  >
+                    <Typography variant="subtitle1">
+                      {entry.client_name}
                     </Typography>
-                  )}
-                </Box>
-              ))
+                    <Typography variant="body2" color="text.secondary">
+                      {entry.hours} hours -{' '}
+                      {new Date(entry.date).toLocaleDateString()}
+                    </Typography>
+                    {entry.description && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {entry.description}
+                      </Typography>
+                    )}
+                  </Box>
+                ),
+              )
             ) : (
-              <Typography color="text.secondary">No work entries yet</Typography>
+              <Typography color="text.secondary">
+                No work entries yet
+              </Typography>
             )}
           </Paper>
         </Grid>

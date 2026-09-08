@@ -60,8 +60,12 @@ const WorkEntriesPage: React.FC = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: (entryData: { clientId: number; hours: number; description?: string; date: string }) =>
-      apiClient.createWorkEntry(entryData),
+    mutationFn: (entryData: {
+      clientId: number;
+      hours: number;
+      description?: string;
+      date: string;
+    }) => apiClient.createWorkEntry(entryData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workEntries'] });
       handleClose();
@@ -73,8 +77,18 @@ const WorkEntriesPage: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { clientId?: number; hours?: number; description?: string; date?: string } }) =>
-      apiClient.updateWorkEntry(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: {
+        clientId?: number;
+        hours?: number;
+        description?: string;
+        date?: string;
+      };
+    }) => apiClient.updateWorkEntry(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workEntries'] });
       handleClose();
@@ -171,14 +185,23 @@ const WorkEntriesPage: React.FC = () => {
   };
 
   const handleDelete = (entry: WorkEntry) => {
-    if (window.confirm(`Are you sure you want to delete this ${entry.hours} hour entry for ${entry.client_name}?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete this ${entry.hours} hour entry for ${entry.client_name}?`,
+      )
+    ) {
       deleteMutation.mutate(entry.id);
     }
   };
 
   if (entriesLoading || clientsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -187,9 +210,18 @@ const WorkEntriesPage: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+        >
           <Typography variant="h4">Work Entries</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpen()}
+          >
             Add Work Entry
           </Button>
         </Box>
@@ -237,10 +269,10 @@ const WorkEntriesPage: React.FC = () => {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Chip 
-                            label={`${entry.hours} hours`} 
-                            color="primary" 
-                            variant="outlined" 
+                          <Chip
+                            label={`${entry.hours} hours`}
+                            color="primary"
+                            variant="outlined"
                           />
                         </TableCell>
                         <TableCell>
@@ -249,7 +281,11 @@ const WorkEntriesPage: React.FC = () => {
                               {entry.description}
                             </Typography>
                           ) : (
-                            <Chip label="No description" size="small" variant="outlined" />
+                            <Chip
+                              label="No description"
+                              size="small"
+                              variant="outlined"
+                            />
                           )}
                         </TableCell>
                         <TableCell align="right">
@@ -274,7 +310,8 @@ const WorkEntriesPage: React.FC = () => {
                     <TableRow>
                       <TableCell colSpan={5} align="center">
                         <Typography color="text.secondary" sx={{ py: 3 }}>
-                          No work entries found. Add your first work entry to get started.
+                          No work entries found. Add your first work entry to
+                          get started.
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -295,8 +332,15 @@ const WorkEntriesPage: React.FC = () => {
                 <InputLabel>Client</InputLabel>
                 <Select
                   value={formData.clientId}
-                  onChange={(e) => setFormData({ ...formData, clientId: Number(e.target.value) })}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      clientId: Number(e.target.value),
+                    })
+                  }
+                  disabled={
+                    createMutation.isPending || updateMutation.isPending
+                  }
                 >
                   {clients.map((client: { id: number; name: string }) => (
                     <MenuItem key={client.id} value={client.id}>
@@ -314,7 +358,9 @@ const WorkEntriesPage: React.FC = () => {
                 required
                 inputProps={{ min: 0.01, max: 24, step: 0.01 }}
                 value={formData.hours}
-                onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, hours: e.target.value })
+                }
                 disabled={createMutation.isPending || updateMutation.isPending}
               />
 
@@ -327,7 +373,8 @@ const WorkEntriesPage: React.FC = () => {
                     fullWidth: true,
                     margin: 'dense',
                     required: true,
-                    disabled: createMutation.isPending || updateMutation.isPending,
+                    disabled:
+                      createMutation.isPending || updateMutation.isPending,
                   },
                 }}
               />
@@ -339,12 +386,17 @@ const WorkEntriesPage: React.FC = () => {
                 multiline
                 rows={3}
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 disabled={createMutation.isPending || updateMutation.isPending}
               />
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleClose} disabled={createMutation.isPending || updateMutation.isPending}>
+              <Button
+                onClick={handleClose}
+                disabled={createMutation.isPending || updateMutation.isPending}
+              >
                 Cancel
               </Button>
               <Button
@@ -354,8 +406,10 @@ const WorkEntriesPage: React.FC = () => {
               >
                 {createMutation.isPending || updateMutation.isPending ? (
                   <CircularProgress size={24} />
+                ) : editingEntry ? (
+                  'Update'
                 ) : (
-                  editingEntry ? 'Update' : 'Create'
+                  'Create'
                 )}
               </Button>
             </DialogActions>

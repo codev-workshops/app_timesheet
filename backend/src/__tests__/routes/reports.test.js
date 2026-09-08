@@ -2,14 +2,13 @@ const request = require('supertest');
 const express = require('express');
 const { getDatabase } = require('../../database/init');
 const fs = require('fs');
-const path = require('path');
 
 jest.mock('../../database/init');
 jest.mock('fs');
 jest.mock('csv-writer', () => ({
   createObjectCsvWriter: jest.fn(() => ({
-    writeRecords: jest.fn().mockResolvedValue(undefined)
-  }))
+    writeRecords: jest.fn().mockResolvedValue(undefined),
+  })),
 }));
 jest.mock('pdfkit', () => {
   return jest.fn().mockImplementation(() => ({
@@ -22,7 +21,7 @@ jest.mock('pdfkit', () => {
     addPage: jest.fn().mockReturnThis(),
     pipe: jest.fn(),
     end: jest.fn(),
-    y: 100
+    y: 100,
   }));
 });
 
@@ -31,7 +30,7 @@ jest.mock('../../middleware/auth', () => ({
   authenticateUser: (req, res, next) => {
     req.userEmail = 'test@example.com';
     next();
-  }
+  },
 }));
 
 const app = express();
@@ -44,10 +43,10 @@ describe('Report Routes', () => {
   beforeEach(() => {
     mockDb = {
       all: jest.fn(),
-      get: jest.fn()
+      get: jest.fn(),
     };
     getDatabase.mockReturnValue(mockDb);
-    
+
     // Mock fs methods
     fs.existsSync = jest.fn().mockReturnValue(true);
     fs.mkdirSync = jest.fn();
@@ -63,7 +62,7 @@ describe('Report Routes', () => {
       const mockClient = { id: 1, name: 'Test Client' };
       const mockWorkEntries = [
         { id: 1, hours: 5.5, description: 'Work 1', date: '2024-01-01' },
-        { id: 2, hours: 3.0, description: 'Work 2', date: '2024-01-02' }
+        { id: 2, hours: 3.0, description: 'Work 2', date: '2024-01-02' },
       ];
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -160,14 +159,16 @@ describe('Report Routes', () => {
       expect(mockDb.all).toHaveBeenCalledWith(
         expect.stringContaining('WHERE client_id = ? AND user_email = ?'),
         [1, 'test@example.com'],
-        expect.any(Function)
+        expect.any(Function),
       );
     });
   });
 
   describe('GET /api/reports/export/csv/:clientId', () => {
     test('should return 400 for invalid client ID', async () => {
-      const response = await request(app).get('/api/reports/export/csv/invalid');
+      const response = await request(app).get(
+        '/api/reports/export/csv/invalid',
+      );
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ error: 'Invalid client ID' });
@@ -213,7 +214,9 @@ describe('Report Routes', () => {
 
   describe('GET /api/reports/export/pdf/:clientId', () => {
     test('should return 400 for invalid client ID', async () => {
-      const response = await request(app).get('/api/reports/export/pdf/invalid');
+      const response = await request(app).get(
+        '/api/reports/export/pdf/invalid',
+      );
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ error: 'Invalid client ID' });
@@ -259,7 +262,7 @@ describe('Report Routes', () => {
       expect(mockDb.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.arrayContaining(['test@example.com']),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
   });
@@ -271,11 +274,7 @@ describe('Report Routes', () => {
       });
 
       mockDb.all.mockImplementation((query, params, callback) => {
-        callback(null, [
-          { hours: 2.5 },
-          { hours: 3.75 },
-          { hours: 1.25 }
-        ]);
+        callback(null, [{ hours: 2.5 }, { hours: 3.75 }, { hours: 1.25 }]);
       });
 
       const response = await request(app).get('/api/reports/client/1');
@@ -289,10 +288,7 @@ describe('Report Routes', () => {
       });
 
       mockDb.all.mockImplementation((query, params, callback) => {
-        callback(null, [
-          { hours: 8 },
-          { hours: 4 }
-        ]);
+        callback(null, [{ hours: 8 }, { hours: 4 }]);
       });
 
       const response = await request(app).get('/api/reports/client/1');
@@ -305,7 +301,12 @@ describe('Report Routes', () => {
     test('should handle CSV write error', async () => {
       const mockClient = { id: 1, name: 'Test Client' };
       const mockWorkEntries = [
-        { date: '2024-01-01', hours: 5, description: 'Work 1', created_at: '2024-01-01' }
+        {
+          date: '2024-01-01',
+          hours: 5,
+          description: 'Work 1',
+          created_at: '2024-01-01',
+        },
       ];
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -318,7 +319,7 @@ describe('Report Routes', () => {
 
       const csvWriter = require('csv-writer');
       csvWriter.createObjectCsvWriter.mockReturnValue({
-        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed'))
+        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed')),
       });
 
       const response = await request(app).get('/api/reports/export/csv/1');
@@ -340,7 +341,7 @@ describe('Report Routes', () => {
 
       const csvWriter = require('csv-writer');
       csvWriter.createObjectCsvWriter.mockReturnValue({
-        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed'))
+        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed')),
       });
 
       await request(app).get('/api/reports/export/csv/1');
@@ -348,14 +349,19 @@ describe('Report Routes', () => {
       expect(mockDb.get).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, name FROM clients'),
         expect.arrayContaining([1, 'test@example.com']),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
     test('should create temp directory if it does not exist', async () => {
       const mockClient = { id: 1, name: 'Test Client' };
       const mockWorkEntries = [
-        { date: '2024-01-01', hours: 5, description: 'Work 1', created_at: '2024-01-01' }
+        {
+          date: '2024-01-01',
+          hours: 5,
+          description: 'Work 1',
+          created_at: '2024-01-01',
+        },
       ];
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -370,12 +376,14 @@ describe('Report Routes', () => {
 
       const csvWriter = require('csv-writer');
       csvWriter.createObjectCsvWriter.mockReturnValue({
-        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed'))
+        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed')),
       });
 
       await request(app).get('/api/reports/export/csv/1');
 
-      expect(fs.mkdirSync).toHaveBeenCalledWith(expect.any(String), { recursive: true });
+      expect(fs.mkdirSync).toHaveBeenCalledWith(expect.any(String), {
+        recursive: true,
+      });
     });
 
     test('should not create temp directory if it exists', async () => {
@@ -394,7 +402,7 @@ describe('Report Routes', () => {
 
       const csvWriter = require('csv-writer');
       csvWriter.createObjectCsvWriter.mockReturnValue({
-        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed'))
+        writeRecords: jest.fn().mockRejectedValue(new Error('Write failed')),
       });
 
       await request(app).get('/api/reports/export/csv/1');
@@ -402,7 +410,6 @@ describe('Report Routes', () => {
       expect(fs.mkdirSync).not.toHaveBeenCalled();
     });
   });
-
 
   describe('PDF Export Success Path', () => {
     test('should handle database error when fetching work entries for PDF', async () => {
@@ -434,7 +441,7 @@ describe('Report Routes', () => {
       expect(mockDb.get).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, name FROM clients'),
         expect.arrayContaining([1, 'test@example.com']),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
   });
