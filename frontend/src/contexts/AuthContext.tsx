@@ -14,7 +14,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       const storedEmail = localStorage.getItem('userEmail');
-      
+
       if (storedEmail) {
         try {
           const response = await apiClient.getCurrentUser();

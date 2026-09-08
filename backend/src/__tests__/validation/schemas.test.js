@@ -3,7 +3,7 @@ const {
   workEntrySchema,
   updateWorkEntrySchema,
   updateClientSchema,
-  emailSchema
+  emailSchema,
 } = require('../../validation/schemas');
 
 describe('Validation Schemas', () => {
@@ -11,7 +11,7 @@ describe('Validation Schemas', () => {
     test('should validate valid client data', () => {
       const validClient = {
         name: 'Test Client',
-        description: 'A test client'
+        description: 'A test client',
       };
 
       const { error } = clientSchema.validate(validClient);
@@ -21,7 +21,7 @@ describe('Validation Schemas', () => {
     test('should allow empty description', () => {
       const client = {
         name: 'Test Client',
-        description: ''
+        description: '',
       };
 
       const { error } = clientSchema.validate(client);
@@ -30,7 +30,7 @@ describe('Validation Schemas', () => {
 
     test('should allow missing description', () => {
       const client = {
-        name: 'Test Client'
+        name: 'Test Client',
       };
 
       const { error } = clientSchema.validate(client);
@@ -39,7 +39,7 @@ describe('Validation Schemas', () => {
 
     test('should reject missing name', () => {
       const client = {
-        description: 'No name'
+        description: 'No name',
       };
 
       const { error } = clientSchema.validate(client);
@@ -49,7 +49,7 @@ describe('Validation Schemas', () => {
     test('should reject empty name', () => {
       const client = {
         name: '',
-        description: 'Empty name'
+        description: 'Empty name',
       };
 
       const { error } = clientSchema.validate(client);
@@ -58,7 +58,7 @@ describe('Validation Schemas', () => {
 
     test('should reject name longer than 255 characters', () => {
       const client = {
-        name: 'a'.repeat(256)
+        name: 'a'.repeat(256),
       };
 
       const { error } = clientSchema.validate(client);
@@ -68,7 +68,7 @@ describe('Validation Schemas', () => {
     test('should reject description longer than 1000 characters', () => {
       const client = {
         name: 'Test',
-        description: 'a'.repeat(1001)
+        description: 'a'.repeat(1001),
       };
 
       const { error } = clientSchema.validate(client);
@@ -77,7 +77,7 @@ describe('Validation Schemas', () => {
 
     test('should trim whitespace from name', () => {
       const client = {
-        name: '  Test Client  '
+        name: '  Test Client  ',
       };
 
       const { value } = clientSchema.validate(client);
@@ -91,7 +91,7 @@ describe('Validation Schemas', () => {
         clientId: 1,
         hours: 5.5,
         description: 'Development work',
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(validEntry);
@@ -103,7 +103,7 @@ describe('Validation Schemas', () => {
         clientId: 1,
         hours: 5,
         description: '',
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -113,7 +113,7 @@ describe('Validation Schemas', () => {
     test('should reject missing clientId', () => {
       const entry = {
         hours: 5,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -124,7 +124,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: -1,
         hours: 5,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -135,7 +135,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: 0,
         hours: 5,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -145,7 +145,7 @@ describe('Validation Schemas', () => {
     test('should reject missing hours', () => {
       const entry = {
         clientId: 1,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -156,7 +156,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: 1,
         hours: -5,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -167,7 +167,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: 1,
         hours: 25,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -178,7 +178,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: 1,
         hours: 7.75,
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -188,7 +188,7 @@ describe('Validation Schemas', () => {
     test('should reject missing date', () => {
       const entry = {
         clientId: 1,
-        hours: 5
+        hours: 5,
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -199,7 +199,7 @@ describe('Validation Schemas', () => {
       const entry = {
         clientId: 1,
         hours: 5,
-        date: '01/15/2024'
+        date: '01/15/2024',
       };
 
       const { error } = workEntrySchema.validate(entry);
@@ -210,7 +210,7 @@ describe('Validation Schemas', () => {
   describe('updateWorkEntrySchema', () => {
     test('should validate partial update', () => {
       const update = {
-        hours: 8
+        hours: 8,
       };
 
       const { error } = updateWorkEntrySchema.validate(update);
@@ -220,7 +220,7 @@ describe('Validation Schemas', () => {
     test('should validate multiple field update', () => {
       const update = {
         hours: 8,
-        description: 'Updated description'
+        description: 'Updated description',
       };
 
       const { error } = updateWorkEntrySchema.validate(update);
@@ -236,7 +236,7 @@ describe('Validation Schemas', () => {
 
     test('should validate clientId update', () => {
       const update = {
-        clientId: 2
+        clientId: 2,
       };
 
       const { error } = updateWorkEntrySchema.validate(update);
@@ -245,7 +245,7 @@ describe('Validation Schemas', () => {
 
     test('should validate date update', () => {
       const update = {
-        date: '2024-02-01'
+        date: '2024-02-01',
       };
 
       const { error } = updateWorkEntrySchema.validate(update);
@@ -256,7 +256,7 @@ describe('Validation Schemas', () => {
   describe('updateClientSchema', () => {
     test('should validate name update', () => {
       const update = {
-        name: 'Updated Name'
+        name: 'Updated Name',
       };
 
       const { error } = updateClientSchema.validate(update);
@@ -265,7 +265,7 @@ describe('Validation Schemas', () => {
 
     test('should validate description update', () => {
       const update = {
-        description: 'Updated description'
+        description: 'Updated description',
       };
 
       const { error } = updateClientSchema.validate(update);
@@ -282,7 +282,7 @@ describe('Validation Schemas', () => {
     test('should validate both fields update', () => {
       const update = {
         name: 'New Name',
-        description: 'New Description'
+        description: 'New Description',
       };
 
       const { error } = updateClientSchema.validate(update);
@@ -293,7 +293,7 @@ describe('Validation Schemas', () => {
   describe('emailSchema', () => {
     test('should validate valid email', () => {
       const data = {
-        email: 'test@example.com'
+        email: 'test@example.com',
       };
 
       const { error } = emailSchema.validate(data);
@@ -302,7 +302,7 @@ describe('Validation Schemas', () => {
 
     test('should reject invalid email', () => {
       const data = {
-        email: 'not-an-email'
+        email: 'not-an-email',
       };
 
       const { error } = emailSchema.validate(data);
@@ -318,7 +318,7 @@ describe('Validation Schemas', () => {
 
     test('should accept email with subdomain', () => {
       const data = {
-        email: 'user@mail.example.com'
+        email: 'user@mail.example.com',
       };
 
       const { error } = emailSchema.validate(data);

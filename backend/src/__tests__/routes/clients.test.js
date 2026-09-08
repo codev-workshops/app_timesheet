@@ -8,7 +8,7 @@ jest.mock('../../middleware/auth', () => ({
   authenticateUser: (req, res, next) => {
     req.userEmail = 'test@example.com';
     next();
-  }
+  },
 }));
 
 const app = express();
@@ -29,7 +29,7 @@ describe('Client Routes', () => {
     mockDb = {
       all: jest.fn(),
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn(),
     };
     getDatabase.mockReturnValue(mockDb);
   });
@@ -41,8 +41,20 @@ describe('Client Routes', () => {
   describe('GET /api/clients', () => {
     test('should return all clients for authenticated user', async () => {
       const mockClients = [
-        { id: 1, name: 'Client A', description: 'Desc A', created_at: '2024-01-01', updated_at: '2024-01-01' },
-        { id: 2, name: 'Client B', description: 'Desc B', created_at: '2024-01-02', updated_at: '2024-01-02' }
+        {
+          id: 1,
+          name: 'Client A',
+          description: 'Desc A',
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        },
+        {
+          id: 2,
+          name: 'Client B',
+          description: 'Desc B',
+          created_at: '2024-01-02',
+          updated_at: '2024-01-02',
+        },
       ];
 
       mockDb.all.mockImplementation((query, params, callback) => {
@@ -56,7 +68,7 @@ describe('Client Routes', () => {
       expect(mockDb.all).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, name, description'),
         ['test@example.com'],
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -130,9 +142,14 @@ describe('Client Routes', () => {
   describe('POST /api/clients', () => {
     test('should create new client with valid data', async () => {
       const newClient = { name: 'New Client', description: 'New Description' };
-      const createdClient = { id: 1, ...newClient, created_at: '2024-01-01', updated_at: '2024-01-01' };
+      const createdClient = {
+        id: 1,
+        ...newClient,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      };
 
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         this.lastID = 1;
         callback.call(this, null);
       });
@@ -141,9 +158,7 @@ describe('Client Routes', () => {
         callback(null, createdClient);
       });
 
-      const response = await request(app)
-        .post('/api/clients')
-        .send(newClient);
+      const response = await request(app).post('/api/clients').send(newClient);
 
       expect(response.status).toBe(201);
       expect(response.body.message).toBe('Client created successfully');
@@ -152,9 +167,13 @@ describe('Client Routes', () => {
 
     test('should create client without description', async () => {
       const newClient = { name: 'Client Without Desc' };
-      const createdClient = { id: 1, name: 'Client Without Desc', description: null };
+      const createdClient = {
+        id: 1,
+        name: 'Client Without Desc',
+        description: null,
+      };
 
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         this.lastID = 1;
         callback.call(this, null);
       });
@@ -163,9 +182,7 @@ describe('Client Routes', () => {
         callback(null, createdClient);
       });
 
-      const response = await request(app)
-        .post('/api/clients')
-        .send(newClient);
+      const response = await request(app).post('/api/clients').send(newClient);
 
       expect(response.status).toBe(201);
     });
@@ -202,7 +219,11 @@ describe('Client Routes', () => {
 
   describe('PUT /api/clients/:id', () => {
     test('should update client name', async () => {
-      const updatedClient = { id: 1, name: 'Updated Name', description: 'Old Desc' };
+      const updatedClient = {
+        id: 1,
+        name: 'Updated Name',
+        description: 'Old Desc',
+      };
 
       mockDb.get.mockImplementationOnce((query, params, callback) => {
         callback(null, { id: 1 }); // Client exists
@@ -235,7 +256,11 @@ describe('Client Routes', () => {
       });
 
       mockDb.get.mockImplementationOnce((query, params, callback) => {
-        callback(null, { id: 1, name: 'Client', description: 'New Description' });
+        callback(null, {
+          id: 1,
+          name: 'Client',
+          description: 'New Description',
+        });
       });
 
       const response = await request(app)
@@ -268,9 +293,7 @@ describe('Client Routes', () => {
     });
 
     test('should return 400 for empty update', async () => {
-      const response = await request(app)
-        .put('/api/clients/1')
-        .send({});
+      const response = await request(app).put('/api/clients/1').send({});
 
       expect(response.status).toBe(400);
     });
@@ -339,7 +362,7 @@ describe('Client Routes', () => {
 
   describe('POST /api/clients - Error Handling', () => {
     test('should handle error retrieving client after creation', async () => {
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         this.lastID = 1;
         callback.call(this, null);
       });
@@ -353,7 +376,9 @@ describe('Client Routes', () => {
         .send({ name: 'Test Client' });
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Client created but failed to retrieve' });
+      expect(response.body).toEqual({
+        error: 'Client created but failed to retrieve',
+      });
     });
   });
 
@@ -406,11 +431,17 @@ describe('Client Routes', () => {
         .send({ name: 'Updated Name' });
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Client updated but failed to retrieve' });
+      expect(response.body).toEqual({
+        error: 'Client updated but failed to retrieve',
+      });
     });
 
     test('should update both name and description', async () => {
-      const updatedClient = { id: 1, name: 'New Name', description: 'New Description' };
+      const updatedClient = {
+        id: 1,
+        name: 'New Name',
+        description: 'New Description',
+      };
 
       mockDb.get.mockImplementationOnce((query, params, callback) => {
         callback(null, { id: 1 });

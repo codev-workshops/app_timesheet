@@ -1,6 +1,7 @@
 # Backend Test Suite
 
 ## Overview
+
 Comprehensive unit test suite for the employee time tracking backend API. Tests cover all routes, middleware, database operations, and validation logic.
 
 ## Quick Start
@@ -50,23 +51,25 @@ __tests__/
 
 ## Coverage Summary
 
-| Module | Coverage | Tests |
-|--------|----------|-------|
-| Database | 93.1% | 8 |
-| Middleware | 100% | 19 |
-| Routes | 75.9% | 76 |
-| Validation | 100% | 38 |
-| **Total** | **79.2%** | **134** |
+| Module     | Coverage  | Tests   |
+| ---------- | --------- | ------- |
+| Database   | 93.1%     | 8       |
+| Middleware | 100%      | 19      |
+| Routes     | 75.9%     | 76      |
+| Validation | 100%      | 38      |
+| **Total**  | **79.2%** | **134** |
 
 ## Test Categories
 
 ### Authentication Tests (22 tests)
+
 - Email validation and format checking
 - User creation and authentication
 - Header-based authentication
 - Database error handling
 
 ### CRUD Operation Tests (48 tests)
+
 - Client management (24 tests)
 - Work entry management (24 tests)
 - Input validation
@@ -74,6 +77,7 @@ __tests__/
 - Error scenarios
 
 ### Validation Tests (38 tests)
+
 - Client schema validation
 - Work entry schema validation
 - Update schema validation
@@ -81,12 +85,14 @@ __tests__/
 - Edge cases and boundary conditions
 
 ### Report Tests (17 tests)
+
 - Report generation
 - Hours aggregation
 - Data isolation
 - Export validation (CSV/PDF)
 
 ### Error Handling Tests (19 tests)
+
 - Joi validation errors
 - SQLite database errors
 - Generic error responses
@@ -95,6 +101,7 @@ __tests__/
 ## Writing New Tests
 
 ### Test Template
+
 ```javascript
 const request = require('supertest');
 const express = require('express');
@@ -109,7 +116,7 @@ describe('Feature Name', () => {
     mockDb = {
       all: jest.fn(),
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn(),
     };
     getDatabase.mockReturnValue(mockDb);
   });
@@ -136,23 +143,27 @@ describe('Feature Name', () => {
 ### Best Practices
 
 1. **Use descriptive test names**
+
    ```javascript
    ✅ test('should return 404 if client not found')
    ❌ test('test client route')
    ```
 
 2. **Follow AAA pattern**
+
    - Arrange: Set up test data and mocks
    - Act: Execute the code being tested
    - Assert: Verify the results
 
 3. **Mock external dependencies**
+
    ```javascript
    jest.mock('../../database/init');
    jest.mock('../../middleware/auth');
    ```
 
 4. **Test error scenarios**
+
    ```javascript
    test('should handle database error', async () => {
      mockDb.get.mockImplementation((query, params, callback) => {
@@ -170,25 +181,28 @@ describe('Feature Name', () => {
 ## Mocking Strategy
 
 ### Database Mocking
+
 ```javascript
 mockDb = {
-  all: jest.fn(),   // For SELECT queries returning multiple rows
-  get: jest.fn(),   // For SELECT queries returning single row
-  run: jest.fn()    // For INSERT, UPDATE, DELETE
+  all: jest.fn(), // For SELECT queries returning multiple rows
+  get: jest.fn(), // For SELECT queries returning single row
+  run: jest.fn(), // For INSERT, UPDATE, DELETE
 };
 ```
 
 ### Authentication Mocking
+
 ```javascript
 jest.mock('../../middleware/auth', () => ({
   authenticateUser: (req, res, next) => {
     req.userEmail = 'test@example.com';
     next();
-  }
+  },
 }));
 ```
 
 ### File System Mocking
+
 ```javascript
 jest.mock('fs');
 fs.existsSync = jest.fn().mockReturnValue(true);
@@ -198,6 +212,7 @@ fs.mkdirSync = jest.fn();
 ## Common Test Patterns
 
 ### Testing CRUD Operations
+
 ```javascript
 // GET all
 test('should return all items', async () => {
@@ -211,18 +226,17 @@ test('should return all items', async () => {
 
 // POST create
 test('should create new item', async () => {
-  mockDb.run.mockImplementation(function(query, params, callback) {
+  mockDb.run.mockImplementation(function (query, params, callback) {
     this.lastID = 1;
     callback.call(this, null);
   });
-  const response = await request(app)
-    .post('/api/items')
-    .send({ name: 'Test' });
+  const response = await request(app).post('/api/items').send({ name: 'Test' });
   expect(response.status).toBe(201);
 });
 ```
 
 ### Testing Validation
+
 ```javascript
 test('should reject invalid input', async () => {
   const response = await request(app)
@@ -233,6 +247,7 @@ test('should reject invalid input', async () => {
 ```
 
 ### Testing Authorization
+
 ```javascript
 test('should only return user-owned data', async () => {
   mockDb.all.mockImplementation((query, params, callback) => {
@@ -246,22 +261,27 @@ test('should only return user-owned data', async () => {
 ## Debugging Tests
 
 ### Run specific test file
+
 ```bash
 npm test -- auth.test.js
 ```
 
 ### Run specific test
+
 ```bash
 npm test -- -t "should create new client"
 ```
 
 ### Run with console output
+
 ```bash
 npm test -- --verbose
 ```
 
 ### Debug in VS Code
+
 Add to `.vscode/launch.json`:
+
 ```json
 {
   "type": "node",
@@ -284,6 +304,7 @@ Add to `.vscode/launch.json`:
 ## CI/CD Integration
 
 ### GitHub Actions Example
+
 ```yaml
 - name: Run tests
   run: npm run test:ci
@@ -297,16 +318,19 @@ Add to `.vscode/launch.json`:
 ## Troubleshooting
 
 ### Tests timing out
+
 - Increase timeout in `jest.config.js`
 - Check for unresolved promises
 - Ensure callbacks are called in mocks
 
 ### Mocks not working
+
 - Check mock is defined before import
 - Use `jest.clearAllMocks()` in `afterEach`
 - Verify mock path is correct
 
 ### Coverage not accurate
+
 - Check `collectCoverageFrom` in `jest.config.js`
 - Ensure all files are included
 - Run `npm test -- --coverage --verbose`

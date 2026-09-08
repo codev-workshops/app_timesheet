@@ -1,5 +1,4 @@
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 
 let db = null;
 let isClosing = false;
@@ -24,7 +23,7 @@ function getDatabase() {
 
 async function initializeDatabase() {
   const database = getDatabase();
-  
+
   return new Promise((resolve, reject) => {
     database.serialize(() => {
       // Create users table
@@ -67,10 +66,18 @@ async function initializeDatabase() {
       `);
 
       // Create indexes for better performance
-      database.run(`CREATE INDEX IF NOT EXISTS idx_clients_user_email ON clients (user_email)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_client_id ON work_entries (client_id)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_user_email ON work_entries (user_email)`);
-      database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_date ON work_entries (date)`);
+      database.run(
+        `CREATE INDEX IF NOT EXISTS idx_clients_user_email ON clients (user_email)`,
+      );
+      database.run(
+        `CREATE INDEX IF NOT EXISTS idx_work_entries_client_id ON work_entries (client_id)`,
+      );
+      database.run(
+        `CREATE INDEX IF NOT EXISTS idx_work_entries_user_email ON work_entries (user_email)`,
+      );
+      database.run(
+        `CREATE INDEX IF NOT EXISTS idx_work_entries_date ON work_entries (date)`,
+      );
 
       console.log('Database tables created successfully');
       resolve();
@@ -85,7 +92,7 @@ function closeDatabase() {
       resolve();
       return;
     }
-    
+
     if (isClosing) {
       // Currently closing, wait for it to complete
       const checkClosed = setInterval(() => {
@@ -96,13 +103,13 @@ function closeDatabase() {
       }, 10);
       return;
     }
-    
+
     if (!db) {
       // No database connection, resolve immediately
       resolve();
       return;
     }
-    
+
     isClosing = true;
     db.close((err) => {
       isClosed = true;
@@ -121,5 +128,5 @@ function closeDatabase() {
 module.exports = {
   getDatabase,
   initializeDatabase,
-  closeDatabase
+  closeDatabase,
 };

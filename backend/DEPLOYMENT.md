@@ -3,12 +3,15 @@
 ## ⚠️ Important Security & Data Considerations
 
 ### Data Persistence Warning
-**This application uses SQLite in-memory database as specified in requirements.** 
+
+**This application uses SQLite in-memory database as specified in requirements.**
+
 - All data will be lost when the server restarts
 - Not suitable for production use without modification
 - For production, consider switching to file-based SQLite or a proper database
 
 ### Authentication Security
+
 - Email-only authentication assumes trusted network environment
 - No password protection - anyone with a valid company email can access
 - Consider integrating with company SSO for production use
@@ -17,17 +20,20 @@
 ## Environment Configuration
 
 1. **Copy environment variables:**
+
 ```bash
 cp .env.example .env
 ```
 
 2. **Set strong JWT secret:**
+
 ```bash
 # Generate a secure random secret (32+ characters recommended)
 JWT_SECRET=$(openssl rand -base64 32)
 ```
 
 3. **Update .env file:**
+
 ```bash
 NODE_ENV=production
 PORT=3001
@@ -38,6 +44,7 @@ JWT_SECRET=your-generated-secret-key-here
 ## Production Deployment Steps
 
 ### Option 1: Simple PM2 Deployment
+
 ```bash
 # Install PM2 globally
 npm install -g pm2
@@ -54,6 +61,7 @@ pm2 startup
 ```
 
 ### Option 2: Docker Deployment
+
 ```dockerfile
 FROM node:18-alpine
 
@@ -70,7 +78,9 @@ CMD ["node", "src/server.js"]
 ```
 
 ### Option 3: Systemd Service
+
 Create `/etc/systemd/system/time-tracker.service`:
+
 ```ini
 [Unit]
 Description=Time Tracker API

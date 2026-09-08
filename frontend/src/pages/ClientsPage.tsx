@@ -33,7 +33,12 @@ import { type Client } from '../types/api';
 const ClientsPage: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [formData, setFormData] = useState({ name: '', description: '', department: '', email: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    department: '',
+    email: '',
+  });
   const [error, setError] = useState('');
 
   const queryClient = useQueryClient();
@@ -44,8 +49,12 @@ const ClientsPage: React.FC = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: (clientData: { name: string; description?: string; department?: string; email?: string }) =>
-      apiClient.createClient(clientData),
+    mutationFn: (clientData: {
+      name: string;
+      description?: string;
+      department?: string;
+      email?: string;
+    }) => apiClient.createClient(clientData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       handleClose();
@@ -57,8 +66,18 @@ const ClientsPage: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: { name?: string; description?: string; department?: string; email?: string } }) =>
-      apiClient.updateClient(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: {
+        name?: string;
+        description?: string;
+        department?: string;
+        email?: string;
+      };
+    }) => apiClient.updateClient(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       handleClose();
@@ -96,11 +115,11 @@ const ClientsPage: React.FC = () => {
   const handleOpen = (client?: Client) => {
     if (client) {
       setEditingClient(client);
-      setFormData({ 
-        name: client.name, 
+      setFormData({
+        name: client.name,
         description: client.description || '',
         department: client.department || '',
-        email: client.email || ''
+        email: client.email || '',
       });
     } else {
       setEditingClient(null);
@@ -153,14 +172,23 @@ const ClientsPage: React.FC = () => {
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm('Are you sure you want to delete ALL clients? This action cannot be undone.')) {
+    if (
+      window.confirm(
+        'Are you sure you want to delete ALL clients? This action cannot be undone.',
+      )
+    ) {
       deleteAllMutation.mutate();
     }
   };
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -168,7 +196,12 @@ const ClientsPage: React.FC = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h4">Clients</Typography>
         <Box display="flex" gap={2}>
           {clients.length > 0 && (
@@ -182,7 +215,11 @@ const ClientsPage: React.FC = () => {
               {deleteAllMutation.isPending ? 'Clearing...' : 'Clear All'}
             </Button>
           )}
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpen()}
+          >
             Add Client
           </Button>
         </Box>
@@ -240,7 +277,11 @@ const ClientsPage: React.FC = () => {
                           {client.description}
                         </Typography>
                       ) : (
-                        <Chip label="No description" size="small" variant="outlined" />
+                        <Chip
+                          label="No description"
+                          size="small"
+                          variant="outlined"
+                        />
                       )}
                     </TableCell>
                     <TableCell>
@@ -293,7 +334,9 @@ const ClientsPage: React.FC = () => {
               fullWidth
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               disabled={createMutation.isPending || updateMutation.isPending}
             />
             <TextField
@@ -301,7 +344,9 @@ const ClientsPage: React.FC = () => {
               label="Department"
               fullWidth
               value={formData.department}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, department: e.target.value })
+              }
               disabled={createMutation.isPending || updateMutation.isPending}
             />
             <TextField
@@ -310,7 +355,9 @@ const ClientsPage: React.FC = () => {
               fullWidth
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               disabled={createMutation.isPending || updateMutation.isPending}
             />
             <TextField
@@ -320,12 +367,17 @@ const ClientsPage: React.FC = () => {
               multiline
               rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               disabled={createMutation.isPending || updateMutation.isPending}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose} disabled={createMutation.isPending || updateMutation.isPending}>
+            <Button
+              onClick={handleClose}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
               Cancel
             </Button>
             <Button
@@ -335,8 +387,10 @@ const ClientsPage: React.FC = () => {
             >
               {createMutation.isPending || updateMutation.isPending ? (
                 <CircularProgress size={24} />
+              ) : editingClient ? (
+                'Update'
               ) : (
-                editingClient ? 'Update' : 'Create'
+                'Create'
               )}
             </Button>
           </DialogActions>

@@ -4,7 +4,10 @@
 module.exports = {
   jwt: {
     // hardcoded signing secret (should be moved to env/secret manager)
-    secret: 'zt7Qk29 eR8nT4uV6wX9yA1bC3dE5fG7hI0jK2lM4nO6pQ8rS'.replace(' ', ''),
+    secret: 'zt7Qk29 eR8nT4uV6wX9yA1bC3dE5fG7hI0jK2lM4nO6pQ8rS'.replace(
+      ' ',
+      '',
+    ),
     expiresIn: '24h',
   },
   database: {

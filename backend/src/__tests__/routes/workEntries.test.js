@@ -8,7 +8,7 @@ jest.mock('../../middleware/auth', () => ({
   authenticateUser: (req, res, next) => {
     req.userEmail = 'test@example.com';
     next();
-  }
+  },
 }));
 
 const app = express();
@@ -29,7 +29,7 @@ describe('Work Entry Routes', () => {
     mockDb = {
       all: jest.fn(),
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn(),
     };
     getDatabase.mockReturnValue(mockDb);
   });
@@ -41,8 +41,22 @@ describe('Work Entry Routes', () => {
   describe('GET /api/work-entries', () => {
     test('should return all work entries for user', async () => {
       const mockEntries = [
-        { id: 1, client_id: 1, hours: 5, description: 'Work 1', date: '2024-01-01', client_name: 'Client A' },
-        { id: 2, client_id: 2, hours: 3, description: 'Work 2', date: '2024-01-02', client_name: 'Client B' }
+        {
+          id: 1,
+          client_id: 1,
+          hours: 5,
+          description: 'Work 1',
+          date: '2024-01-01',
+          client_name: 'Client A',
+        },
+        {
+          id: 2,
+          client_id: 2,
+          hours: 3,
+          description: 'Work 2',
+          date: '2024-01-02',
+          client_name: 'Client B',
+        },
       ];
 
       mockDb.all.mockImplementation((query, params, callback) => {
@@ -66,12 +80,14 @@ describe('Work Entry Routes', () => {
       expect(mockDb.all).toHaveBeenCalledWith(
         expect.stringContaining('AND we.client_id = ?'),
         ['test@example.com', 1],
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
     test('should return 400 for invalid client ID filter', async () => {
-      const response = await request(app).get('/api/work-entries?clientId=invalid');
+      const response = await request(app).get(
+        '/api/work-entries?clientId=invalid',
+      );
 
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ error: 'Invalid client ID' });
@@ -91,7 +107,13 @@ describe('Work Entry Routes', () => {
 
   describe('GET /api/work-entries/:id', () => {
     test('should return specific work entry', async () => {
-      const mockEntry = { id: 1, client_id: 1, hours: 5, description: 'Work', client_name: 'Client A' };
+      const mockEntry = {
+        id: 1,
+        client_id: 1,
+        hours: 5,
+        description: 'Work',
+        client_name: 'Client A',
+      };
 
       mockDb.get.mockImplementation((query, params, callback) => {
         callback(null, mockEntry);
@@ -128,7 +150,7 @@ describe('Work Entry Routes', () => {
         clientId: 1,
         hours: 5.5,
         description: 'Development work',
-        date: '2024-01-15'
+        date: '2024-01-15',
       };
 
       mockDb.get.mockImplementation((query, params, callback) => {
@@ -139,7 +161,7 @@ describe('Work Entry Routes', () => {
         }
       });
 
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         this.lastID = 1;
         callback.call(this, null);
       });
@@ -157,16 +179,16 @@ describe('Work Entry Routes', () => {
         callback(null, null); // Client doesn't exist
       });
 
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 999,
-          hours: 5,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 999,
+        hours: 5,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Client not found or does not belong to user' });
+      expect(response.body).toEqual({
+        error: 'Client not found or does not belong to user',
+      });
     });
 
     test('should return 400 for missing required fields', async () => {
@@ -178,25 +200,21 @@ describe('Work Entry Routes', () => {
     });
 
     test('should return 400 for invalid hours', async () => {
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 1,
-          hours: -5,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 1,
+        hours: -5,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(400);
     });
 
     test('should return 400 for hours exceeding 24', async () => {
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 1,
-          hours: 25,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 1,
+        hours: 25,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(400);
     });
@@ -210,13 +228,11 @@ describe('Work Entry Routes', () => {
         callback(new Error('Insert failed'));
       });
 
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 1,
-          hours: 5,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 1,
+        hours: 5,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Failed to create work entry' });
@@ -284,9 +300,7 @@ describe('Work Entry Routes', () => {
     });
 
     test('should return 400 for empty update', async () => {
-      const response = await request(app)
-        .put('/api/work-entries/1')
-        .send({});
+      const response = await request(app).put('/api/work-entries/1').send({});
 
       expect(response.status).toBe(400);
     });
@@ -305,7 +319,9 @@ describe('Work Entry Routes', () => {
         .send({ clientId: 999 });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Client not found or does not belong to user' });
+      expect(response.body).toEqual({
+        error: 'Client not found or does not belong to user',
+      });
     });
   });
 
@@ -322,7 +338,9 @@ describe('Work Entry Routes', () => {
       const response = await request(app).delete('/api/work-entries/1');
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ message: 'Work entry deleted successfully' });
+      expect(response.body).toEqual({
+        message: 'Work entry deleted successfully',
+      });
     });
 
     test('should return 404 if work entry not found', async () => {
@@ -389,13 +407,11 @@ describe('Work Entry Routes', () => {
         callback(new Error('Database error'), null);
       });
 
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 1,
-          hours: 5,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 1,
+        hours: 5,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Internal server error' });
@@ -412,21 +428,21 @@ describe('Work Entry Routes', () => {
         }
       });
 
-      mockDb.run.mockImplementation(function(query, params, callback) {
+      mockDb.run.mockImplementation(function (query, params, callback) {
         this.lastID = 1;
         callback.call(this, null);
       });
 
-      const response = await request(app)
-        .post('/api/work-entries')
-        .send({
-          clientId: 1,
-          hours: 5,
-          date: '2024-01-15'
-        });
+      const response = await request(app).post('/api/work-entries').send({
+        clientId: 1,
+        hours: 5,
+        date: '2024-01-15',
+      });
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Work entry created but failed to retrieve' });
+      expect(response.body).toEqual({
+        error: 'Work entry created but failed to retrieve',
+      });
     });
   });
 
@@ -500,13 +516,19 @@ describe('Work Entry Routes', () => {
         .send({ hours: 8 });
 
       expect(response.status).toBe(500);
-      expect(response.body).toEqual({ error: 'Work entry updated but failed to retrieve' });
+      expect(response.body).toEqual({
+        error: 'Work entry updated but failed to retrieve',
+      });
     });
 
     test('should update work entry date', async () => {
       mockDb.get.mockImplementation((query, params, callback) => {
         if (query.includes('work_entries we')) {
-          callback(null, { id: 1, date: '2024-02-01', client_name: 'Client A' });
+          callback(null, {
+            id: 1,
+            date: '2024-02-01',
+            client_name: 'Client A',
+          });
         } else {
           callback(null, { id: 1 });
         }
@@ -527,7 +549,11 @@ describe('Work Entry Routes', () => {
     test('should update work entry description', async () => {
       mockDb.get.mockImplementation((query, params, callback) => {
         if (query.includes('work_entries we')) {
-          callback(null, { id: 1, description: 'New description', client_name: 'Client A' });
+          callback(null, {
+            id: 1,
+            description: 'New description',
+            client_name: 'Client A',
+          });
         } else {
           callback(null, { id: 1 });
         }
@@ -567,7 +593,13 @@ describe('Work Entry Routes', () => {
     test('should update multiple fields at once', async () => {
       mockDb.get.mockImplementation((query, params, callback) => {
         if (query.includes('work_entries we')) {
-          callback(null, { id: 1, hours: 10, description: 'Updated', date: '2024-03-01', client_name: 'Client A' });
+          callback(null, {
+            id: 1,
+            hours: 10,
+            description: 'Updated',
+            date: '2024-03-01',
+            client_name: 'Client A',
+          });
         } else {
           callback(null, { id: 1 });
         }
