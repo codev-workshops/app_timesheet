@@ -1,5 +1,6 @@
 const express = require('express');
 const { getDatabase } = require('../database/init');
+const logger = require('../logger');
 const { emailSchema } = require('../validation/schemas');
 const { authenticateUser } = require('../middleware/auth');
 
@@ -19,7 +20,7 @@ router.post('/login', async (req, res, next) => {
     // Check if user exists
     db.get('SELECT email, created_at FROM users WHERE email = ?', [email], (err, row) => {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error', { err });
         return res.status(500).json({ error: 'Internal server error' });
       }
 
@@ -36,7 +37,7 @@ router.post('/login', async (req, res, next) => {
         // Create new user
         db.run('INSERT INTO users (email) VALUES (?)', [email], function(err) {
           if (err) {
-            console.error('Error creating user:', err);
+            logger.error('Error creating user', { err });
             return res.status(500).json({ error: 'Failed to create user' });
           }
 
@@ -61,7 +62,7 @@ router.get('/me', authenticateUser, (req, res) => {
   
   db.get('SELECT email, created_at FROM users WHERE email = ?', [req.userEmail], (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error', { err });
       return res.status(500).json({ error: 'Internal server error' });
     }
 

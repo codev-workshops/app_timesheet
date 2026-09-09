@@ -1,5 +1,7 @@
+const logger = require('../logger');
+
 function errorHandler(err, req, res, next) {
-  console.error('Error:', err);
+  logger.error('Unhandled error', { err });
 
   // Joi validation errors
   if (err.isJoi) {

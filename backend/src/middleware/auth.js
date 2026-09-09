@@ -1,4 +1,6 @@
 const { getDatabase } = require('../database/init');
+const logger = require('../logger');
+const { setRequestContext } = require('./requestContext');
 
 // Simple email-based authentication middleware
 function authenticateUser(req, res, next) {
@@ -19,7 +21,7 @@ function authenticateUser(req, res, next) {
   // Check if user exists, create if not
   db.get('SELECT email FROM users WHERE email = ?', [userEmail], (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error', { err });
       return res.status(500).json({ error: 'Internal server error' });
     }
     
@@ -27,15 +29,17 @@ function authenticateUser(req, res, next) {
       // Create new user
       db.run('INSERT INTO users (email) VALUES (?)', [userEmail], (err) => {
         if (err) {
-          console.error('Error creating user:', err);
+          logger.error('Error creating user', { err });
           return res.status(500).json({ error: 'Failed to create user' });
         }
         
         req.userEmail = userEmail;
+        setRequestContext({ userEmail });
         next();
       });
     } else {
       req.userEmail = userEmail;
+      setRequestContext({ userEmail });
       next();
     }
   });
