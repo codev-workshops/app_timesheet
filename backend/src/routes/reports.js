@@ -1,5 +1,6 @@
 const express = require('express');
 const { getDatabase } = require('../database/init');
+const logger = require('../logger');
 const { authenticateUser } = require('../middleware/auth');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const PDFDocument = require('pdfkit');
@@ -27,7 +28,7 @@ router.get('/client/:clientId', (req, res) => {
     [clientId, req.userEmail],
     (err, client) => {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error', { err });
         return res.status(500).json({ error: 'Internal server error' });
       }
       
@@ -44,7 +45,7 @@ router.get('/client/:clientId', (req, res) => {
         [clientId, req.userEmail],
         (err, workEntries) => {
           if (err) {
-            console.error('Database error:', err);
+            logger.error('Database error', { err });
             return res.status(500).json({ error: 'Internal server error' });
           }
           
@@ -79,7 +80,7 @@ router.get('/export/csv/:clientId', (req, res) => {
     [clientId, req.userEmail],
     (err, client) => {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error', { err });
         return res.status(500).json({ error: 'Internal server error' });
       }
       
@@ -96,7 +97,7 @@ router.get('/export/csv/:clientId', (req, res) => {
         [clientId, req.userEmail],
         (err, workEntries) => {
           if (err) {
-            console.error('Database error:', err);
+            logger.error('Database error', { err });
             return res.status(500).json({ error: 'Internal server error' });
           }
           
@@ -126,18 +127,18 @@ router.get('/export/csv/:clientId', (req, res) => {
               // Send file and clean up
               res.download(tempPath, filename, (err) => {
                 if (err) {
-                  console.error('Error sending file:', err);
+                  logger.error('Error sending file', { err });
                 }
                 // Clean up temp file
                 fs.unlink(tempPath, (unlinkErr) => {
                   if (unlinkErr) {
-                    console.error('Error deleting temp file:', unlinkErr);
+                    logger.error('Error deleting temp file', { err: unlinkErr });
                   }
                 });
               });
             })
             .catch((error) => {
-              console.error('Error creating CSV:', error);
+              logger.error('Error creating CSV', { err: error });
               res.status(500).json({ error: 'Failed to generate CSV report' });
             });
         }
@@ -162,7 +163,7 @@ router.get('/export/pdf/:clientId', (req, res) => {
     [clientId, req.userEmail],
     (err, client) => {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error', { err });
         return res.status(500).json({ error: 'Internal server error' });
       }
       
@@ -179,7 +180,7 @@ router.get('/export/pdf/:clientId', (req, res) => {
         [clientId, req.userEmail],
         (err, workEntries) => {
           if (err) {
-            console.error('Database error:', err);
+            logger.error('Database error', { err });
             return res.status(500).json({ error: 'Internal server error' });
           }
           

@@ -2,8 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+
+const logger = require('./logger');
+const { requestContext } = require('./middleware/requestContext');
+const { requestLogger } = require('./middleware/requestLogger');
+const { metricsMiddleware, metricsHandler } = require('./metrics');
 
 const authRoutes = require('./routes/auth');
 const clientRoutes = require('./routes/clients');
@@ -15,6 +19,11 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Observability: correlation ID, request metrics, request logging
+app.use(requestContext);
+app.use(metricsMiddleware);
+app.use(requestLogger);
 
 // Security middleware with CSP configured for React SPA
 // Note: HSTS and upgrade-insecure-requests disabled since we serve HTTP without SSL
@@ -48,9 +57,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Logging
-app.use(morgan('combined'));
-
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -59,6 +65,9 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Prometheus metrics (unauthenticated; must precede the SPA catch-all)
+app.get('/metrics', metricsHandler);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -90,12 +99,12 @@ async function startServer() {
   try {
     await initializeDatabase();
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/health`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Server running on port ${PORT}`, { port: PORT });
+      logger.info(`Health check: http://localhost:${PORT}/health`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`, { environment: process.env.NODE_ENV || 'development' });
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server', { err: error });
     process.exit(1);
   }
 }

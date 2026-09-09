@@ -1,3 +1,4 @@
+const logger = require('../../logger');
 const { errorHandler } = require('../../middleware/errorHandler');
 
 describe('Error Handler Middleware', () => {
@@ -11,8 +12,8 @@ describe('Error Handler Middleware', () => {
     };
     next = jest.fn();
     
-    // Mock console.error to avoid cluttering test output
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Mock logger.error to avoid cluttering test output
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -126,13 +127,13 @@ describe('Error Handler Middleware', () => {
     });
   });
 
-  describe('Console Logging', () => {
-    test('should log error to console', () => {
+  describe('Logging', () => {
+    test('should log error via logger', () => {
       const error = new Error('Test error');
       
       errorHandler(error, req, res, next);
 
-      expect(console.error).toHaveBeenCalledWith('Error:', error);
+      expect(logger.error).toHaveBeenCalledWith('Unhandled error', { err: error });
     });
   });
 });
