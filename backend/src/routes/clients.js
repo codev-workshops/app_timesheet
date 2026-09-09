@@ -5,10 +5,24 @@ const { clientSchema, updateClientSchema } = require('../validation/schemas');
 
 const router = express.Router();
 
-// All routes require authentication
+// Router-level auth: every handler below can assume `req.userEmail` exists.
+// Each query is additionally scoped by `user_email` rather than trusting the
+// row id alone — client ids are sequential integers, so an id-only lookup
+// would let one tenant read or destroy another's data by guessing. Scoping the
+// WHERE clause also makes "not yours" indistinguishable from "not found",
+// which avoids leaking which ids exist.
 router.use(authenticateUser);
 
-// Get all clients for authenticated user
+/**
+ * GET /api/clients — lists the caller's clients, alphabetically by name.
+ *
+ * Sorted server-side so every consumer (table, dropdowns on the work-entry and
+ * report pages) shows the same order without re-sorting.
+ *
+ * @param {import('express').Request} req Authenticated request.
+ * @param {import('express').Response} res Receives `{ clients: Client[] }` (empty array when none).
+ * @returns {void} 200 with the list, 500 on database error.
+ */
 router.get('/', (req, res) => {
   const db = getDatabase();
   
@@ -26,7 +40,19 @@ router.get('/', (req, res) => {
   );
 });
 
-// Get specific client
+/**
+ * GET /api/clients/:id — fetches one client owned by the caller.
+ *
+ * `:id` is parsed here because Express params are strings and SQLite would
+ * happily compare a non-numeric string against an INTEGER column, silently
+ * returning nothing; failing fast with a 400 distinguishes a malformed request
+ * from a missing row.
+ *
+ * @param {import('express').Request} req Authenticated request with `params.id`.
+ * @param {import('express').Response} res Receives `{ client: Client }`.
+ * @returns {void} 200 with the client, 400 if the id is not numeric, 404 if it
+ *   does not exist or belongs to someone else, 500 on database error.
+ */
 router.get('/:id', (req, res) => {
   const clientId = parseInt(req.params.id);
   
@@ -54,7 +80,24 @@ router.get('/:id', (req, res) => {
   );
 });
 
-// Create new client
+/**
+ * POST /api/clients — creates a client owned by the caller.
+ *
+ * `user_email` comes from the authenticated request, never from the body, so a
+ * caller cannot create rows on another tenant's behalf. Empty optional fields
+ * are stored as NULL rather than `''` so the frontend's "no description"
+ * placeholders and any future NULL-aware queries behave consistently.
+ *
+ * The insert is followed by a read of `this.lastID` because SQLite fills in
+ * `id`, `created_at` and `updated_at`; returning the stored row saves the
+ * client a refetch and guarantees it sees the persisted values.
+ *
+ * @param {import('express').Request} req Body validated by `clientSchema`.
+ * @param {import('express').Response} res Receives `{ message, client: Client }`.
+ * @param {import('express').NextFunction} next Receives Joi validation errors.
+ * @returns {void} 201 with the created client, 400 on validation failure, 500 if
+ *   the insert fails or the row cannot be read back.
+ */
 router.post('/', (req, res, next) => {
   try {
     const { error, value } = clientSchema.validate(req.body);
@@ -97,7 +140,26 @@ router.post('/', (req, res, next) => {
   }
 });
 
-// Update client
+/**
+ * PUT /api/clients/:id — partially updates a client owned by the caller.
+ *
+ * Ownership is checked with a separate SELECT first so a foreign or missing id
+ * yields 404 rather than a successful-looking UPDATE that matched zero rows
+ * (SQLite reports no error for that).
+ *
+ * The SET clause is assembled from only the keys present in the validated body:
+ * a fixed statement would overwrite omitted columns with NULL, turning every
+ * partial edit into a full replace. Column names are hardcoded per branch and
+ * values are bound as parameters, so the dynamic SQL carries no injection risk.
+ * `updated_at` is always appended, which is why the array is never empty even
+ * though the schema already enforces at least one field.
+ *
+ * @param {import('express').Request} req Body validated by `updateClientSchema`; `params.id` selects the row.
+ * @param {import('express').Response} res Receives `{ message, client: Client }` with the refreshed row.
+ * @param {import('express').NextFunction} next Receives Joi validation errors.
+ * @returns {void} 200 with the updated client, 400 if the id is not numeric or
+ *   the body is invalid, 404 if the client is not the caller's, 500 on database error.
+ */
 router.put('/:id', (req, res, next) => {
   try {
     const clientId = parseInt(req.params.id);
@@ -127,7 +189,8 @@ router.put('/:id', (req, res, next) => {
           return res.status(404).json({ error: 'Client not found' });
         }
 
-        // Build update query dynamically
+        // Only the supplied fields are written; see the JSDoc above for why a
+        // static UPDATE would clobber the omitted columns.
         const updates = [];
         const values = [];
 
@@ -186,7 +249,25 @@ router.put('/:id', (req, res, next) => {
   }
 });
 
-// Delete all clients for authenticated user
+/**
+ * DELETE /api/clients — bulk-deletes every client owned by the caller.
+ *
+ * A convenience for resetting a demo/workshop dataset. It is defined before
+ * `DELETE /:id` on purpose: Express matches in declaration order, and although
+ * an empty path would not collide today, keeping the specific-to-general order
+ * documents the intent.
+ *
+ * The `user_email` predicate is the only thing preventing this from wiping the
+ * whole table, so it must never be dropped "because there is no id". Note that
+ * SQLite's `ON DELETE CASCADE` is not active without
+ * `PRAGMA foreign_keys = ON`, so the deleted clients' work entries survive as
+ * orphans; the work-entry queries JOIN on `clients`, so those rows simply stop
+ * appearing.
+ *
+ * @param {import('express').Request} req Authenticated request.
+ * @param {import('express').Response} res Receives `{ message, deletedCount }` from `this.changes`.
+ * @returns {void} 200 with the number of rows removed (0 is a success), 500 on database error.
+ */
 router.delete('/', (req, res) => {
   const db = getDatabase();
   
@@ -207,7 +288,19 @@ router.delete('/', (req, res) => {
   );
 });
 
-// Delete client
+/**
+ * DELETE /api/clients/:id — deletes one client owned by the caller.
+ *
+ * The SELECT before the DELETE exists to distinguish "already gone / not
+ * yours" (404) from a successful delete, since a scoped DELETE that matches
+ * nothing is not an error. Both statements keep the `user_email` predicate so
+ * the delete cannot escape the tenant even if the check is ever refactored away.
+ *
+ * @param {import('express').Request} req Authenticated request with `params.id`.
+ * @param {import('express').Response} res Receives `{ message }`.
+ * @returns {void} 200 on success, 400 if the id is not numeric, 404 if the
+ *   client is not the caller's, 500 on database error.
+ */
 router.delete('/:id', (req, res) => {
   const clientId = parseInt(req.params.id);
   
@@ -231,7 +324,9 @@ router.delete('/:id', (req, res) => {
         return res.status(404).json({ error: 'Client not found' });
       }
       
-      // Delete client (work entries will be deleted due to CASCADE)
+      // The schema declares ON DELETE CASCADE, but foreign keys are not
+      // enabled on this connection, so related work entries are left behind
+      // and are hidden only because the work-entry queries JOIN on clients.
       db.run(
         'DELETE FROM clients WHERE id = ? AND user_email = ?',
         [clientId, req.userEmail],

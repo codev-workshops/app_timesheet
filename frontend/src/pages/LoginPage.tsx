@@ -12,6 +12,20 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Email-only login screen.
+ *
+ * There is no password field by design — the backend authenticates requests
+ * from an `x-user-email` header, so submitting an address is the whole flow —
+ * and the info alert says so to pre-empt "the form is broken" reports. Any
+ * unknown address is created on submit, so this is also the sign-up screen.
+ *
+ * Loading and error state are local `useState` rather than TanStack Query
+ * because logging in mutates auth context (not server state the cache tracks)
+ * and the redirect happens immediately afterwards.
+ *
+ * @returns The login form.
+ */
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -19,6 +33,17 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  /**
+   * Submits the email and, on success, sends the user to the dashboard.
+   *
+   * `preventDefault` keeps the browser from doing a real form POST. The error
+   * message prefers the backend's `error` field (e.g. a rejected email format)
+   * and falls back to generic copy for network failures, which carry no
+   * response body. `finally` clears the loading flag so a failed attempt
+   * re-enables the form rather than leaving the spinner stuck.
+   *
+   * @param e Form submit event.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

@@ -26,12 +26,32 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+/**
+ * Single source of truth for the sidebar width.
+ *
+ * Referenced by the app bar, nav container, drawer paper and main content so
+ * they stay aligned; changing it in one place shifts the whole shell.
+ */
 const drawerWidth = 240;
 
+/** Props for {@link Layout}. */
 interface LayoutProps {
+  /** The routed page rendered in the main content area. */
   children: ReactNode;
 }
 
+/**
+ * App shell: fixed app bar, responsive navigation drawer and content area.
+ *
+ * Only rendered for authenticated users (the gate lives in `App`), which is why
+ * it can read `user` from the auth context without a null-user fallback beyond
+ * optional chaining. The signed-in email is shown in the bar because it is the
+ * entire identity in this app — there is no display name — and it doubles as a
+ * reminder of which tenant's data is on screen.
+ *
+ * @param props Component props.
+ * @returns The shell with `children` in the main region.
+ */
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,6 +62,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setMobileOpen(!mobileOpen);
   };
 
+  // Navigation is data-driven so the drawer items and the app-bar title come
+  // from one list: the title is looked up by matching the current pathname,
+  // which keeps them from drifting apart when a route is added.
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Clients', icon: <BusinessIcon />, path: '/clients' },
@@ -49,6 +72,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Reports', icon: <AssessmentIcon />, path: '/reports' },
   ];
 
+  // Extracted once and rendered into both drawers below, so the mobile and
+  // desktop variants cannot diverge.
   const drawer = (
     <div>
       <Toolbar>
@@ -116,6 +141,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
         aria-label="mailbox folders"
       >
+        {/*
+          Two drawers rather than one responsive drawer: a temporary (overlay)
+          one shown only on xs, and a permanent one from sm up. MUI has no
+          single variant that switches, so visibility is driven by breakpoint
+          `display` rules. `keepMounted` keeps the mobile drawer's DOM alive so
+          it opens without a re-render cost and stays crawlable.
+        */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -149,6 +181,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
         }}
       >
+        {/*
+          Spacer, not a second bar: the real app bar is `position: fixed` and
+          therefore out of flow, so this empty toolbar reserves exactly its
+          height and stops the page content from sliding underneath it.
+        */}
         <Toolbar />
         {children}
       </Box>

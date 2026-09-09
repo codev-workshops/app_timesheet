@@ -31,8 +31,20 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import { type ClientReport } from '../types/api';
 
+/**
+ * Per-client hours report with CSV and PDF download.
+ *
+ * Reports are per client by design — the backend has no cross-client report —
+ * so a client must be picked before anything is shown.
+ *
+ * @returns The reports page.
+ */
 const ReportsPage: React.FC = () => {
+  // 0 means "no client selected"; real ids start at 1, so it works as both a
+  // falsy guard and a valid `Select` value.
   const [selectedClientId, setSelectedClientId] = useState<number>(0);
+  // Only carries export failures: the report query's own errors surface through
+  // its loading/empty states.
   const [error, setError] = useState('');
 
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
@@ -40,6 +52,9 @@ const ReportsPage: React.FC = () => {
     queryFn: () => apiClient.getClients(),
   });
 
+  // The client id is part of the query key so each client's report is cached
+  // separately and switching back is instant. `enabled` holds the query until a
+  // client is chosen, which avoids a guaranteed-404 request for id 0.
   const { data: reportData, isLoading: reportLoading } = useQuery({
     queryKey: ['clientReport', selectedClientId],
     queryFn: () => apiClient.getClientReport(selectedClientId),
@@ -49,6 +64,20 @@ const ReportsPage: React.FC = () => {
   const clients = clientsData?.clients || [];
   const report = reportData as ClientReport | undefined;
 
+  /**
+   * Downloads the selected client's report as CSV.
+   *
+   * The file cannot be fetched by pointing the browser at the URL: the endpoint
+   * requires the `x-user-email` header, which only the Axios client adds. So
+   * the response is pulled down as a blob and handed to the browser through a
+   * temporary object URL and a synthetic anchor click. The URL is revoked and
+   * the anchor removed immediately afterwards to avoid leaking the blob for the
+   * lifetime of the page.
+   *
+   * The filename is rebuilt here (rather than read from the response's
+   * Content-Disposition header) because the blob discards it; the sanitising
+   * regex mirrors the backend's so the two names match.
+   */
   const handleExportCsv = async () => {
     if (!selectedClientId) return;
     
@@ -69,6 +98,12 @@ const ReportsPage: React.FC = () => {
     }
   };
 
+  /**
+   * Downloads the selected client's report as PDF.
+   *
+   * Same blob-and-anchor mechanism as {@link handleExportCsv}, for the same
+   * reason (the auth header cannot ride on a plain link navigation).
+   */
   const handleExportPdf = async () => {
     if (!selectedClientId) return;
 

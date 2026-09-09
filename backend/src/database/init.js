@@ -1,10 +1,28 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+// Module-level singleton plus a hand-rolled close state machine. `sqlite3`
+// gives no way to ask a handle whether it is closed, and `closeDatabase()` can
+// be called concurrently (Jest teardown in several suites, plus process exit),
+// so the lifecycle is tracked here instead.
 let db = null;
 let isClosing = false;
 let isClosed = false;
 
+/**
+ * Returns the process-wide SQLite handle, opening it on first use.
+ *
+ * The database is `:memory:`, so the handle is effectively the dataset: every
+ * caller must share this one instance or they would each get an empty, private
+ * database. That also means restarting the server (or closing the handle in a
+ * test) discards all data by design.
+ *
+ * Re-opening after a close resets the close flags, which is what lets a test
+ * suite tear down and rebuild a clean database within the same process.
+ *
+ * @returns {import('sqlite3').Database} The shared in-memory connection.
+ * @throws {Error} If SQLite fails to open the connection.
+ */
 function getDatabase() {
   if (!db) {
     // Reset state when creating a new database connection
@@ -22,6 +40,28 @@ function getDatabase() {
   return db;
 }
 
+/**
+ * Creates the schema and indexes on the shared connection.
+ *
+ * Wrapped in `serialize()` so the statements run in order — the `clients` and
+ * `work_entries` foreign keys reference tables created earlier in the same
+ * batch. Every statement is `IF NOT EXISTS`, so it is safe to call repeatedly
+ * (the server calls it at boot, tests call it per suite).
+ *
+ * Note the `ON DELETE CASCADE` foreign keys: they express the intended
+ * ownership graph (deleting a client should remove its work entries), but
+ * SQLite only enforces foreign keys when `PRAGMA foreign_keys = ON` is set, and
+ * this app never sets it. Cascades therefore do NOT fire at runtime, which is
+ * why handlers such as the work-entry PUT verify client ownership themselves
+ * rather than relying on the database.
+ *
+ * The resolve happens from inside `serialize()` once the statements have been
+ * queued, so it signals "schema work submitted", not "schema committed";
+ * subsequent queries on the same serialized connection still observe the
+ * tables.
+ *
+ * @returns {Promise<void>} Resolves once the DDL statements have been queued.
+ */
 async function initializeDatabase() {
   const database = getDatabase();
   
@@ -78,6 +118,24 @@ async function initializeDatabase() {
   });
 }
 
+/**
+ * Closes the shared connection, tolerating repeat and concurrent calls.
+ *
+ * Exists mainly for test teardown: Jest suites close the database in
+ * `afterAll`, and an unclosed handle keeps the process alive. Because several
+ * suites may race, this resolves immediately when already closed and otherwise
+ * waits for an in-flight close.
+ *
+ * The wait is a 10ms poll on `isClosed` rather than a queue of pending
+ * promises: `sqlite3.close()` only notifies its own callback, so a second
+ * caller has no event to await and polling the flag is the simplest way to
+ * join. A failed close still marks the handle closed and drops the reference —
+ * the next `getDatabase()` then opens a fresh (empty) database instead of
+ * handing back a dead handle. Errors are logged, never rejected, so teardown
+ * cannot fail the suite.
+ *
+ * @returns {Promise<void>} Resolves when the connection is closed (or was already).
+ */
 function closeDatabase() {
   return new Promise((resolve, reject) => {
     if (isClosed) {
@@ -87,7 +145,8 @@ function closeDatabase() {
     }
     
     if (isClosing) {
-      // Currently closing, wait for it to complete
+      // Join the in-flight close by polling the flag; sqlite3 offers no way to
+      // register a second close listener.
       const checkClosed = setInterval(() => {
         if (isClosed) {
           clearInterval(checkClosed);

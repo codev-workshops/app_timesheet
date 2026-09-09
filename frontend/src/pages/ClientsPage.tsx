@@ -30,10 +30,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import { type Client } from '../types/api';
 
+/**
+ * Client management: table of the user's clients plus create/edit/delete.
+ *
+ * All rows come from the authenticated user's own data — scoping happens
+ * server-side from the email header — so nothing here filters by owner.
+ *
+ * @returns The clients page.
+ */
 const ClientsPage: React.FC = () => {
   const [open, setOpen] = useState(false);
+  // A single dialog serves both create and edit; `editingClient` is the mode
+  // switch (null = create) and drives the title and which mutation runs.
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  // Form fields are held as empty strings rather than `null`/`undefined`
+  // because MUI text fields must stay controlled; they are converted back to
+  // `undefined` on submit so blanks are not sent as empty values.
   const [formData, setFormData] = useState({ name: '', description: '', department: '', email: '' });
+  // One shared error slot for the query dialog and all four mutations — only
+  // one operation is in flight at a time, so a single banner suffices.
   const [error, setError] = useState('');
 
   const queryClient = useQueryClient();
@@ -43,6 +58,11 @@ const ClientsPage: React.FC = () => {
     queryFn: () => apiClient.getClients(),
   });
 
+  // Each mutation invalidates the `clients` key rather than patching the cache:
+  // the server assigns ids and timestamps, so refetching is the only way to
+  // show the authoritative row (and it also refreshes the dashboard's counts).
+  // Closing the dialog in `onSuccess` keeps it open on failure so the user's
+  // input is not lost.
   const createMutation = useMutation({
     mutationFn: (clientData: { name: string; description?: string; department?: string; email?: string }) =>
       apiClient.createClient(clientData),
@@ -80,6 +100,8 @@ const ClientsPage: React.FC = () => {
     },
   });
 
+  // Bulk delete of every client owned by the user; the destructive-action
+  // confirmation lives in `handleDeleteAll`, not here.
   const deleteAllMutation = useMutation({
     mutationFn: () => apiClient.deleteAllClients(),
     onSuccess: () => {
@@ -93,6 +115,15 @@ const ClientsPage: React.FC = () => {
 
   const clients = clientsData?.clients || [];
 
+  /**
+   * Opens the dialog for editing an existing client, or for creating one.
+   *
+   * Seeds the form from the client and coalesces its nullable columns to empty
+   * strings so the inputs stay controlled. Any stale error is cleared so a
+   * previous failure does not appear over a fresh form.
+   *
+   * @param client Client to edit; omit to create a new one.
+   */
   const handleOpen = (client?: Client) => {
     if (client) {
       setEditingClient(client);
@@ -110,6 +141,12 @@ const ClientsPage: React.FC = () => {
     setOpen(true);
   };
 
+  /**
+   * Closes the dialog and resets it.
+   *
+   * Resetting on close (rather than on open) means a cancelled edit cannot leak
+   * its values into the next create.
+   */
   const handleClose = () => {
     setOpen(false);
     setEditingClient(null);
@@ -117,6 +154,17 @@ const ClientsPage: React.FC = () => {
     setError('');
   };
 
+  /**
+   * Validates the form and routes it to the create or update mutation.
+   *
+   * The name check duplicates the backend's Joi rule deliberately, to give
+   * immediate feedback and avoid a pointless round trip. Blank optional fields
+   * are converted to `undefined` so they are omitted from the request body:
+   * sending `''` would store an empty string instead of leaving the column
+   * unset.
+   *
+   * @param e Form submit event.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -146,12 +194,24 @@ const ClientsPage: React.FC = () => {
     }
   };
 
+  /**
+   * Deletes one client after confirmation.
+   *
+   * @param client Client to delete; its name is echoed in the prompt so the
+   *   user can see which row they clicked.
+   */
   const handleDelete = (client: Client) => {
     if (window.confirm(`Are you sure you want to delete "${client.name}"?`)) {
       deleteMutation.mutate(client.id);
     }
   };
 
+  /**
+   * Deletes every client after confirmation.
+   *
+   * The prompt is the only safeguard: the backend performs the delete
+   * immediately and its database is in-memory, so there is no recovery path.
+   */
   const handleDeleteAll = () => {
     if (window.confirm('Are you sure you want to delete ALL clients? This action cannot be undone.')) {
       deleteAllMutation.mutate();
