@@ -36,9 +36,21 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import apiClient from '../api/client';
 import { type WorkEntry } from '../types/api';
 
+/**
+ * Work-entry management: table of logged hours plus create/edit/delete.
+ *
+ * @returns The work entries page.
+ */
 const WorkEntriesPage: React.FC = () => {
   const [open, setOpen] = useState(false);
+  // null = create mode; otherwise the entry being edited.
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
+  // Form state deliberately does not mirror the API shape: `hours` is kept as
+  // a string so the number field can hold partial input ("1.", "") without
+  // being coerced to NaN mid-typing, and `date` is a `Date` because that is
+  // what the MUI picker works with. Both are converted on submit. `clientId: 0`
+  // stands in for "nothing selected" — real ids start at 1, so it is falsy and
+  // still a valid `Select` value.
   const [formData, setFormData] = useState({
     clientId: 0,
     hours: '',
@@ -54,11 +66,16 @@ const WorkEntriesPage: React.FC = () => {
     queryFn: () => apiClient.getWorkEntries(),
   });
 
+  // Clients are fetched too, purely to populate the dropdown and to resolve
+  // names; it shares the `clients` query key with the clients page, so the list
+  // is usually already cached.
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: () => apiClient.getClients(),
   });
 
+  // Mutations invalidate `workEntries` (not `clients`) and only close the
+  // dialog on success, so a rejected submission keeps the user's input.
   const createMutation = useMutation({
     mutationFn: (entryData: { clientId: number; hours: number; description?: string; date: string }) =>
       apiClient.createWorkEntry(entryData),
@@ -99,6 +116,15 @@ const WorkEntriesPage: React.FC = () => {
   const workEntries = workEntriesData?.workEntries || [];
   const clients = clientsData?.clients || [];
 
+  /**
+   * Opens the dialog to edit an entry, or to create one.
+   *
+   * Converts the stored row into the form's representation (hours to string,
+   * date to `Date`), and defaults a new entry to today since that is the common
+   * case for logging work.
+   *
+   * @param entry Entry to edit; omit to create a new one.
+   */
   const handleOpen = (entry?: WorkEntry) => {
     if (entry) {
       setEditingEntry(entry);
@@ -121,6 +147,7 @@ const WorkEntriesPage: React.FC = () => {
     setOpen(true);
   };
 
+  /** Closes the dialog and clears the form so values do not leak into the next open. */
   const handleClose = () => {
     setOpen(false);
     setEditingEntry(null);
@@ -133,6 +160,17 @@ const WorkEntriesPage: React.FC = () => {
     setError('');
   };
 
+  /**
+   * Validates the form, normalises it to the API shape and submits it.
+   *
+   * The checks mirror the backend's Joi rules to fail fast without a round
+   * trip; note `!hours` also rejects a blank or unparseable value, since
+   * `parseFloat('')` is NaN. `date` is truncated to `YYYY-MM-DD` because the
+   * backend stores a calendar day — sending a full ISO timestamp would drag the
+   * viewer's timezone into it and could shift the day.
+   *
+   * @param e Form submit event.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -170,6 +208,14 @@ const WorkEntriesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Deletes an entry after confirmation.
+   *
+   * The prompt quotes the hours and client instead of an id, which is the only
+   * way a user can tell two similar rows apart.
+   *
+   * @param entry Entry to delete.
+   */
   const handleDelete = (entry: WorkEntry) => {
     if (window.confirm(`Are you sure you want to delete this ${entry.hours} hour entry for ${entry.client_name}?`)) {
       deleteMutation.mutate(entry.id);

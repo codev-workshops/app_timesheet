@@ -8,10 +8,27 @@ const fs = require('fs');
 
 const router = express.Router();
 
-// All routes require authentication
+// Router-level auth. All three handlers share the same shape: verify the client
+// belongs to the caller, then read that client's entries with the `user_email`
+// predicate repeated on the entries query too — defence in depth, since a
+// report is the one place where another tenant's hours would be exported
+// wholesale.
 router.use(authenticateUser);
 
-// Get hourly report for specific client
+/**
+ * GET /api/reports/client/:clientId — JSON hours report for one client.
+ *
+ * Totals are summed in JavaScript rather than with SQL `SUM()` because SQLite
+ * stores `hours` in a `DECIMAL(5,2)` column that the driver may hand back as a
+ * string; `parseFloat` per row keeps the arithmetic predictable. Callers get
+ * the raw entries alongside the aggregate so the UI can render the table and
+ * the summary cards from a single request.
+ *
+ * @param {import('express').Request} req Authenticated request with `params.clientId`.
+ * @param {import('express').Response} res Receives `{ client, workEntries, totalHours, entryCount }`.
+ * @returns {void} 200 with the report, 400 if the id is not numeric, 404 if the
+ *   client is not the caller's, 500 on database error.
+ */
 router.get('/client/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
@@ -63,7 +80,33 @@ router.get('/client/:clientId', (req, res) => {
   );
 });
 
-// Export client report as CSV
+/**
+ * GET /api/reports/export/csv/:clientId — downloads the report as a CSV file.
+ *
+ * Unlike the PDF path, this one round-trips through disk: `csv-writer`'s
+ * `createObjectCsvWriter` only knows how to write to a path, so the response
+ * cannot be streamed directly. The temp-file lifecycle is therefore:
+ *
+ * 1. build a collision-resistant name from the client name (non-alphanumerics
+ *    replaced, so it is safe as a filesystem and `Content-Disposition` value)
+ *    plus an ISO timestamp with `:`/`.` swapped out for `-`;
+ * 2. create `backend/temp/` on demand, since it is not checked into the repo;
+ * 3. write the file, then `res.download()` it so Express streams it with the
+ *    right attachment headers;
+ * 4. delete it in the download callback — which fires on failure as well as
+ *    success, so a broken connection cannot leak the file. Both the download
+ *    and unlink errors are only logged: the response has already begun
+ *    streaming by then, so no status code can still be sent.
+ *
+ * A failure before the download starts (CSV generation) can still answer with
+ * 500. Concurrent exports of the same client are safe because the timestamped
+ * name is per-request.
+ *
+ * @param {import('express').Request} req Authenticated request with `params.clientId`.
+ * @param {import('express').Response} res Receives a CSV attachment with Date/Hours/Description/Created At columns.
+ * @returns {void} 200 with the file, 400 if the id is not numeric, 404 if the
+ *   client is not the caller's, 500 on database or CSV-generation error.
+ */
 router.get('/export/csv/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
@@ -100,7 +143,6 @@ router.get('/export/csv/:clientId', (req, res) => {
             return res.status(500).json({ error: 'Internal server error' });
           }
           
-          // Create temporary CSV file
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const filename = `${client.name.replace(/[^a-zA-Z0-9]/g, '_')}_report_${timestamp}.csv`;
           const tempPath = path.join(__dirname, '../../temp', filename);
@@ -123,12 +165,12 @@ router.get('/export/csv/:clientId', (req, res) => {
           
           csvWriter.writeRecords(workEntries)
             .then(() => {
-              // Send file and clean up
               res.download(tempPath, filename, (err) => {
                 if (err) {
                   console.error('Error sending file:', err);
                 }
-                // Clean up temp file
+                // Runs on success and failure alike, so the temp file is
+                // removed even if the client disconnects mid-download.
                 fs.unlink(tempPath, (unlinkErr) => {
                   if (unlinkErr) {
                     console.error('Error deleting temp file:', unlinkErr);
@@ -146,7 +188,26 @@ router.get('/export/csv/:clientId', (req, res) => {
   );
 });
 
-// Export client report as PDF
+/**
+ * GET /api/reports/export/pdf/:clientId — streams the report as a PDF.
+ *
+ * `pdfkit` writes to a stream, so unlike the CSV path this pipes straight into
+ * the response and needs no temp file. The trade-off is that headers must be
+ * set before `doc.pipe(res)`: once piping starts the response is committed, so
+ * any later failure cannot be turned into a 500 — the client would receive a
+ * truncated PDF.
+ *
+ * The table is laid out by hand with absolute coordinates because pdfkit has no
+ * table primitive. The magic numbers are column origins in PDF points from the
+ * left margin — 50 (Date), 150 (Hours), 230 (Description) — chosen so each
+ * column's declared width (100/80/300) ends just before the next origin and the
+ * last one stops at the 550-point right edge used by the separator lines.
+ *
+ * @param {import('express').Request} req Authenticated request with `params.clientId`.
+ * @param {import('express').Response} res Receives the PDF as an attachment.
+ * @returns {void} 200 with the file, 400 if the id is not numeric, 404 if the
+ *   client is not the caller's, 500 on database error (only before streaming starts).
+ */
 router.get('/export/pdf/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
@@ -205,7 +266,9 @@ router.get('/export/pdf/:clientId', (req, res) => {
           doc.text(`Generated: ${new Date().toLocaleString()}`);
           doc.moveDown();
           
-          // Add table header
+          // Header row: the first `text()` call advances `doc.y` by one line,
+          // so the other two subtract 15 points (roughly one line at this font
+          // size) to stay level with it.
           doc.fontSize(12).text('Date', 50, doc.y, { width: 100 });
           doc.text('Hours', 150, doc.y - 15, { width: 80 });
           doc.text('Description', 230, doc.y - 15, { width: 300 });
@@ -215,11 +278,14 @@ router.get('/export/pdf/:clientId', (req, res) => {
           doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
           doc.moveDown(0.5);
           
-          // Add work entries
           workEntries.forEach((entry, index) => {
+            // Capture the row's baseline once so the three columns align even
+            // though the first `text()` call below moves the cursor.
             const y = doc.y;
             
-            // Check if we need a new page
+            // Page break before the row would run off the bottom: the default
+            // Letter page is 792 points tall with a 72-point bottom margin, so
+            // 700 leaves room for one more line plus a separator.
             if (y > 700) {
               doc.addPage();
             }
@@ -229,7 +295,8 @@ router.get('/export/pdf/:clientId', (req, res) => {
             doc.text(entry.description || 'No description', 230, y, { width: 300 });
             doc.moveDown();
             
-            // Add separator line every 5 entries
+            // Rule every fifth row, purely for legibility when scanning long
+            // reports.
             if ((index + 1) % 5 === 0) {
               doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
               doc.moveDown(0.5);

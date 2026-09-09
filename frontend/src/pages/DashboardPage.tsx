@@ -18,9 +18,22 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
 
+/**
+ * Landing page: headline counts, the latest entries and shortcut actions.
+ *
+ * Read-only by design — every action navigates to the page that owns the
+ * relevant mutation, so there is no create/edit logic (or error state) to
+ * duplicate here.
+ *
+ * @returns The dashboard.
+ */
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
+  // Both lists are fetched with the same query keys the clients and
+  // work-entries pages use, so those pages' invalidations refresh this one for
+  // free and a revisit is served from cache. Errors are not surfaced: the
+  // fallbacks below degrade to zeros rather than blocking the page.
   const { data: clientsData } = useQuery({
     queryKey: ['clients'],
     queryFn: () => apiClient.getClients(),
@@ -31,12 +44,19 @@ const DashboardPage: React.FC = () => {
     queryFn: () => apiClient.getWorkEntries(),
   });
 
+  // Defaults cover both the initial load and a failed fetch, which is what
+  // lets the render path below assume arrays.
   const clients = clientsData?.clients || [];
   const workEntries = workEntriesData?.workEntries || [];
 
+  // Aggregated client-side because the reports endpoint totals per client,
+  // and this needs the figure across all of them. `slice(0, 5)` relies on the
+  // API returning entries newest-first, so no sort is done here.
   const totalHours = workEntries.reduce((sum: number, entry: { hours: number }) => sum + entry.hours, 0);
   const recentEntries = workEntries.slice(0, 5);
 
+  // Card definitions carry their own navigation target so the three tiles
+  // render from one loop instead of three near-identical JSX blocks.
   const statsCards = [
     {
       title: 'Total Clients',
