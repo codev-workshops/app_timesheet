@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Per-client reporting/export routes, mounted at `/api/reports`.
+ *
+ * Every route runs behind `authenticateUser` (`x-user-email` header required;
+ * 401 missing / 400 malformed). Each handler first resolves the client with
+ * `WHERE id = ? AND user_email = ?`, returning 404 when it is missing or owned
+ * by someone else, and then reads work entries with the same `user_email`
+ * filter. Reports are computed on the fly from the in-memory database; nothing
+ * is cached or persisted (the CSV export writes a temp file only for the
+ * duration of the download).
+ */
 const express = require('express');
 const { getDatabase } = require('../database/init');
 const { authenticateUser } = require('../middleware/auth');
@@ -11,7 +22,25 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticateUser);
 
-// Get hourly report for specific client
+/**
+ * `GET /api/reports/client/:clientId` - JSON hours summary for one client.
+ *
+ * @description
+ * Returns the client's entries (newest first) plus aggregates computed in
+ * JavaScript: `totalHours` is the `parseFloat` sum of `hours`, `entryCount` is
+ * the row count. Aggregation is done in Node rather than SQL so the entry list
+ * and totals come from one result set.
+ *
+ * @param {import('express').Request} req
+ * @param {string} req.params.clientId - Client id (`parseInt`).
+ * @param {string} req.userEmail - Owner filter for both client and entries.
+ * @param {import('express').Response} res
+ * @returns {void}
+ *   - 200 `{ client: { id, name }, workEntries: Array<{ id, hours, description, date, created_at, updated_at }>, totalHours: number, entryCount: number }`
+ *   - 400 `{ error: 'Invalid client ID' }`
+ *   - 404 `{ error: 'Client not found' }`
+ *   - 500 `{ error: 'Internal server error' }`
+ */
 router.get('/client/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
@@ -63,7 +92,28 @@ router.get('/client/:clientId', (req, res) => {
   );
 });
 
-// Export client report as CSV
+/**
+ * `GET /api/reports/export/csv/:clientId` - download the client's entries as CSV.
+ *
+ * @description
+ * Columns: `Date, Hours, Description, Created At`. Because `csv-writer` only
+ * writes to disk, the handler writes `<backend>/temp/<sanitised client name>_report_<timestamp>.csv`
+ * (creating `temp/` if needed), streams it with `res.download()`, and unlinks
+ * the file in the download callback regardless of success. The client name is
+ * reduced to `[a-zA-Z0-9_]` for the filename so it is safe as a path segment
+ * and a `Content-Disposition` value. Errors after headers are sent are only
+ * logged.
+ *
+ * @param {import('express').Request} req
+ * @param {string} req.params.clientId - Client id (`parseInt`).
+ * @param {string} req.userEmail - Owner filter.
+ * @param {import('express').Response} res
+ * @returns {void}
+ *   - 200 `text/csv` attachment
+ *   - 400 `{ error: 'Invalid client ID' }`
+ *   - 404 `{ error: 'Client not found' }`
+ *   - 500 `{ error: 'Internal server error' }` (DB) or `{ error: 'Failed to generate CSV report' }` (write)
+ */
 router.get('/export/csv/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
@@ -146,7 +196,28 @@ router.get('/export/csv/:clientId', (req, res) => {
   );
 });
 
-// Export client report as PDF
+/**
+ * `GET /api/reports/export/pdf/:clientId` - download the client's entries as PDF.
+ *
+ * @description
+ * Builds the document with `pdfkit` and pipes it straight to the response (no
+ * temp file, unlike the CSV export). Layout: title, total hours / entry count /
+ * generation time, then a simple Date | Hours | Description table with a rule
+ * every 5 rows and a new page once `doc.y` passes 700. Headers set:
+ * `Content-Type: application/pdf` and an attachment `Content-Disposition` using
+ * the same sanitised filename scheme as the CSV export. Once piping has begun
+ * no JSON error can be returned; failures surface as a truncated stream.
+ *
+ * @param {import('express').Request} req
+ * @param {string} req.params.clientId - Client id (`parseInt`).
+ * @param {string} req.userEmail - Owner filter.
+ * @param {import('express').Response} res
+ * @returns {void}
+ *   - 200 `application/pdf` attachment
+ *   - 400 `{ error: 'Invalid client ID' }`
+ *   - 404 `{ error: 'Client not found' }`
+ *   - 500 `{ error: 'Internal server error' }` (DB errors before streaming starts)
+ */
 router.get('/export/pdf/:clientId', (req, res) => {
   const clientId = parseInt(req.params.clientId);
   
