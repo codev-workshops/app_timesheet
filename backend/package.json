@@ -11,7 +11,9 @@
     "test:coverage": "jest --coverage",
     "test:coverage:html": "jest --coverage && open coverage/index.html",
     "test:verbose": "jest --verbose",
-    "test:ci": "jest --coverage --ci --maxWorkers=2"
+    "test:ci": "jest --coverage --ci --maxWorkers=2",
+    "perf:seed": "node scripts/seed-perf.js",
+    "perf:audit": "node scripts/perf-audit.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
