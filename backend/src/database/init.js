@@ -85,6 +85,11 @@ async function initializeDatabase() {
       database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_client_id ON work_entries (client_id)`);
       database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_user_email ON work_entries (user_email)`);
       database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_date ON work_entries (date)`);
+      // Composite indexes serving the hot query patterns:
+      //  - report queries: WHERE user_email = ? AND client_id = ? ORDER BY date DESC
+      //  - list query:     WHERE user_email = ? ORDER BY date DESC, created_at DESC
+      database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_user_client_date ON work_entries (user_email, client_id, date)`);
+      database.run(`CREATE INDEX IF NOT EXISTS idx_work_entries_user_date_created ON work_entries (user_email, date, created_at)`);
 
       console.log('Database tables created successfully');
       resolve();
