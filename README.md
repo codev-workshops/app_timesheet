@@ -288,6 +288,12 @@ See `backend/DEPLOYMENT.md` for detailed production deployment instructions.
 - Mobile app
 - Integration with calendar systems
 
+## Architecture Decision Records
+
+Key architectural decisions — and how the code actually behaves today — are
+documented as ADRs in [`docs/adr/`](docs/adr/README.md). Start with the index
+there; the Critical entries cover authentication and data persistence.
+
 ## License
 
 MIT
