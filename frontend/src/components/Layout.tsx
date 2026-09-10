@@ -26,18 +26,49 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+/**
+ * Width of the navigation drawer in px.
+ *
+ * @remarks
+ * Shared between the drawer itself, the `AppBar` offset and the main content
+ * margin so the three stay aligned when the value changes.
+ */
 const drawerWidth = 240;
 
+/** Props for {@link Layout}. */
 interface LayoutProps {
+  /** The routed page content rendered inside the shell. */
   children: ReactNode;
 }
 
+/**
+ * Application shell: top `AppBar`, side navigation drawer and content area.
+ *
+ * @remarks
+ * Rendered by `App.tsx` around every authenticated route, so it is the single
+ * place that knows the list of top-level pages (`menuItems`); the `AppBar`
+ * title is derived from that same list by matching `location.pathname` to
+ * avoid duplicating page names.
+ *
+ * Two `Drawer`s are rendered on purpose. MUI's responsive-drawer pattern uses
+ * a `temporary` drawer (toggled by the hamburger button, `xs` only) and a
+ * `permanent` drawer (`sm` and up); CSS `display` toggles decide which one is
+ * visible so there is no layout jump on resize. `keepMounted` on the temporary
+ * drawer keeps its DOM in place for faster open animations on mobile.
+ *
+ * The empty `<Toolbar />` at the top of `main` is a spacer that pushes content
+ * below the fixed `AppBar`.
+ *
+ * @param props - See {@link LayoutProps}.
+ * @returns The page chrome with `children` in the main content region.
+ */
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
+  /** Opens/closes the mobile (temporary) drawer. No effect on `sm+` screens. */
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };

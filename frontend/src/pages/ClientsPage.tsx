@@ -30,6 +30,28 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import { type Client } from '../types/api';
 
+/**
+ * CRUD screen for the current user's clients.
+ *
+ * @remarks
+ * Server state (the client list) lives entirely in TanStack Query under the
+ * `['clients']` key; local `useState` is used only for UI concerns (dialog
+ * open/closed, the record being edited, form fields, error banner). Every
+ * mutation invalidates `['clients']` on success instead of patching the cache
+ * optimistically: the backend is the source of truth for server-generated
+ * fields such as `created_at`, and a refetch is cheap for this data volume.
+ *
+ * A single dialog handles both create and edit; `editingClient` being non-null
+ * is what switches the mode, the title and which mutation `handleSubmit`
+ * fires. Optional fields are converted from `''` to `undefined` before sending
+ * so the backend Joi schema treats them as omitted rather than as empty
+ * strings.
+ *
+ * Destructive actions use `window.confirm` because the database is in-memory
+ * and there is no undo; "Clear All" is hidden when the list is already empty.
+ *
+ * @returns The clients table and create/edit dialog.
+ */
 const ClientsPage: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -93,6 +115,13 @@ const ClientsPage: React.FC = () => {
 
   const clients = clientsData?.clients || [];
 
+  /**
+   * Opens the dialog in create mode (no argument) or edit mode.
+   *
+   * @param client - Existing client to edit; when omitted the form is reset
+   * for a new record. Nullable fields are coerced to `''` so the controlled
+   * `TextField`s never receive `undefined`.
+   */
   const handleOpen = (client?: Client) => {
     if (client) {
       setEditingClient(client);
@@ -110,6 +139,14 @@ const ClientsPage: React.FC = () => {
     setOpen(true);
   };
 
+  /**
+   * Closes the dialog and clears all form/edit/error state.
+   *
+   * @remarks
+   * Also called from the mutations' `onSuccess`, so state is reset only after
+   * the server has accepted the change; a failed request keeps the dialog open
+   * with the user's input intact.
+   */
   const handleClose = () => {
     setOpen(false);
     setEditingClient(null);
@@ -117,6 +154,13 @@ const ClientsPage: React.FC = () => {
     setError('');
   };
 
+  /**
+   * Validates the form and dispatches the create or update mutation.
+   *
+   * @param e - Form submit event; default is prevented to keep the SPA from
+   * reloading. Only `name` is validated client-side; everything else is left
+   * to the backend Joi schema so the rules are not duplicated.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -146,12 +190,20 @@ const ClientsPage: React.FC = () => {
     }
   };
 
+  /**
+   * Deletes one client after confirmation.
+   *
+   * @param client - Client to delete. Its work entries are removed by the
+   * database `ON DELETE CASCADE`; the `['workEntries']` cache is not invalidated
+   * here, so other pages refresh those on their own next fetch.
+   */
   const handleDelete = (client: Client) => {
     if (window.confirm(`Are you sure you want to delete "${client.name}"?`)) {
       deleteMutation.mutate(client.id);
     }
   };
 
+  /** Deletes every client after confirmation. See {@link handleDelete}. */
   const handleDeleteAll = () => {
     if (window.confirm('Are you sure you want to delete ALL clients? This action cannot be undone.')) {
       deleteAllMutation.mutate();
