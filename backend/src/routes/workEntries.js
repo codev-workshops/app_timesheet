@@ -1,47 +1,95 @@
 const express = require('express');
 const { getDatabase } = require('../database/init');
 const { authenticateUser } = require('../middleware/auth');
-const { workEntrySchema, updateWorkEntrySchema } = require('../validation/schemas');
+const { workEntrySchema, updateWorkEntrySchema, workEntryListQuerySchema } = require('../validation/schemas');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateUser);
 
-// Get all work entries for authenticated user (with optional client filter)
+// Get work entries for authenticated user, paginated, with optional client filter.
+// Query params: clientId, limit (default 50, max 200), offset (default 0).
 router.get('/', (req, res) => {
-  const { clientId } = req.query;
+  const { error, value } = workEntryListQuerySchema.validate(req.query);
+  if (error) {
+    const invalidClientId = error.details.some((d) => d.path[0] === 'clientId');
+    return res.status(400).json({
+      error: invalidClientId ? 'Invalid client ID' : error.details[0].message
+    });
+  }
+
+  const { clientId, limit, offset } = value;
   const db = getDatabase();
-  
-  let query = `
+
+  let where = ' WHERE we.user_email = ?';
+  const filterParams = [req.userEmail];
+
+  if (clientId) {
+    where += ' AND we.client_id = ?';
+    filterParams.push(clientId);
+  }
+
+  const countQuery = `SELECT COUNT(*) AS total FROM work_entries we${where}`;
+
+  const listQuery = `
     SELECT we.id, we.client_id, we.hours, we.description, we.date, 
            we.created_at, we.updated_at, c.name as client_name
     FROM work_entries we
-    JOIN clients c ON we.client_id = c.id
-    WHERE we.user_email = ?
-  `;
-  
-  const params = [req.userEmail];
-  
-  if (clientId) {
-    const clientIdNum = parseInt(clientId);
-    if (isNaN(clientIdNum)) {
-      return res.status(400).json({ error: 'Invalid client ID' });
-    }
-    query += ' AND we.client_id = ?';
-    params.push(clientIdNum);
-  }
-  
-  query += ' ORDER BY we.date DESC, we.created_at DESC';
-  
-  db.all(query, params, (err, rows) => {
+    JOIN clients c ON we.client_id = c.id${where}
+    ORDER BY we.date DESC, we.created_at DESC
+    LIMIT ? OFFSET ?`;
+
+  db.get(countQuery, filterParams, (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
-    
-    res.json({ workEntries: rows });
+
+    const total = countRow ? Number(countRow.total) || 0 : 0;
+
+    db.all(listQuery, [...filterParams, limit, offset], (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      res.json({
+        workEntries: rows,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + rows.length < total
+        }
+      });
+    });
   });
+});
+
+// Aggregate totals for the authenticated user (dashboard summary)
+router.get('/summary', (req, res) => {
+  const db = getDatabase();
+
+  db.get(
+    `SELECT COUNT(*) AS entryCount, COALESCE(SUM(hours), 0) AS totalHours
+     FROM work_entries
+     WHERE user_email = ?`,
+    [req.userEmail],
+    (err, row) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+
+      res.json({
+        summary: {
+          entryCount: row ? Number(row.entryCount) || 0 : 0,
+          totalHours: row ? Number(row.totalHours) || 0 : 0
+        }
+      });
+    }
+  );
 });
 
 // Get specific work entry

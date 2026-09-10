@@ -28,6 +28,37 @@ export interface WorkEntryWithClient extends WorkEntry {
   client_name: string;
 }
 
+export interface Pagination {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface WorkEntriesPage {
+  workEntries: WorkEntryWithClient[];
+  pagination: Pagination;
+}
+
+export interface WorkEntryListParams {
+  clientId?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface WorkEntrySummary {
+  entryCount: number;
+  totalHours: number;
+}
+
+export interface WorkEntrySummaryResponse {
+  summary: WorkEntrySummary;
+}
+
+export interface ClientsResponse {
+  clients: Client[];
+}
+
 export interface ClientReport {
   client: Client;
   workEntries: WorkEntry[];
