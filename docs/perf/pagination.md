@@ -40,7 +40,7 @@ SEARCH c USING INTEGER PRIMARY KEY (rowid=?)
 SEARCH we USING COVERING INDEX idx_work_entries_user_email (user_email=?)
 
 -- summary
-SEARCH work_entries USING COVERING INDEX idx_work_entries_user_client_date (user_email=?)
+SEARCH work_entries USING INDEX idx_work_entries_user_email (user_email=?)
 ```
 
 Note: `OFFSET` still skips rows via index walk, so deep pages cost O(offset); acceptable for the
