@@ -31,6 +31,27 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import { type ClientReport } from '../types/api';
 
+/**
+ * Per-client hours report with CSV/PDF export.
+ *
+ * @remarks
+ * The report query is keyed on `['clientReport', selectedClientId]` and gated
+ * with `enabled: selectedClientId > 0`, so nothing is requested until a client
+ * is chosen and each client's report is cached independently. `0` is used as
+ * the "none selected" sentinel because MUI `Select` needs a concrete value and
+ * real ids start at 1.
+ *
+ * Exports are not plain links: the backend requires the `x-user-email` header,
+ * which a browser navigation to the export URL would not send. Instead the
+ * file is fetched through `apiClient` as a `Blob`, wrapped in an object URL,
+ * and clicked via a temporary anchor so the download still goes through the
+ * authenticated axios instance. The object URL is revoked immediately after
+ * the click to release memory. The download name sanitises the client name
+ * to `[a-zA-Z0-9_]` and appends today's date so repeated exports don't
+ * overwrite each other.
+ *
+ * @returns The client picker, summary cards and entry table for the report.
+ */
 const ReportsPage: React.FC = () => {
   const [selectedClientId, setSelectedClientId] = useState<number>(0);
   const [error, setError] = useState('');
@@ -49,6 +70,13 @@ const ReportsPage: React.FC = () => {
   const clients = clientsData?.clients || [];
   const report = reportData as ClientReport | undefined;
 
+  /**
+   * Downloads the selected client's report as CSV.
+   *
+   * @remarks
+   * Errors are surfaced via the page-level `Alert` rather than thrown, since
+   * the click handler has no caller to propagate to.
+   */
   const handleExportCsv = async () => {
     if (!selectedClientId) return;
     
@@ -69,6 +97,7 @@ const ReportsPage: React.FC = () => {
     }
   };
 
+  /** Downloads the selected client's report as PDF. See {@link handleExportCsv}. */
   const handleExportPdf = async () => {
     if (!selectedClientId) return;
 

@@ -18,6 +18,28 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
 
+/**
+ * Landing page after login: summary counts, recent entries and quick links.
+ *
+ * @remarks
+ * The dashboard deliberately reuses the `['clients']` and `['workEntries']`
+ * query keys used by the Clients and Work Entries pages. TanStack Query
+ * dedupes by key, so navigating between pages hits the cache instead of
+ * refetching, and mutations on those pages invalidate the same keys, keeping
+ * these numbers in sync without a dedicated dashboard endpoint.
+ *
+ * Aggregates (`totalHours`, `recentEntries`) are computed client-side from the
+ * full entry list rather than via `/api/reports`, because the reports API is
+ * per-client and the volume of data for a single user is small. "Recent" is
+ * simply the first five entries; the backend already orders by date
+ * descending.
+ *
+ * The `@ts-expect-error` directives on `Grid item` exist because MUI v7
+ * `Grid` typings no longer accept the legacy `item`/`xs` props even though
+ * they still work at runtime.
+ *
+ * @returns The dashboard layout.
+ */
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
