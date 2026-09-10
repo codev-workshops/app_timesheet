@@ -1,4 +1,4 @@
-const { authenticateUser } = require('../../middleware/auth');
+const { authenticateUser, clearKnownUsers } = require('../../middleware/auth');
 const { getDatabase } = require('../../database/init');
 
 jest.mock('../../database/init');
@@ -18,10 +18,11 @@ describe('Authentication Middleware', () => {
     
     mockDb = {
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn((query, params, callback) => callback(null))
     };
     
     getDatabase.mockReturnValue(mockDb);
+    clearKnownUsers();
   });
 
   afterEach(() => {
@@ -53,24 +54,36 @@ describe('Authentication Middleware', () => {
 
     test('should accept valid email format', () => {
       req.headers['x-user-email'] = 'test@example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(null, { email: 'test@example.com' });
-      });
 
       authenticateUser(req, res, next);
 
-      expect(mockDb.get).toHaveBeenCalled();
+      expect(mockDb.run).toHaveBeenCalled();
     });
   });
 
-  describe('Existing User Authentication', () => {
-    test('should authenticate existing user and call next()', (done) => {
-      req.headers['x-user-email'] = 'existing@example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(null, { email: 'existing@example.com' });
+  describe('User Upsert', () => {
+    test('should upsert user with a single statement and call next()', (done) => {
+      req.headers['x-user-email'] = 'newuser@example.com';
+
+      authenticateUser(req, res, next);
+
+      setImmediate(() => {
+        expect(mockDb.run).toHaveBeenCalledTimes(1);
+        expect(mockDb.run).toHaveBeenCalledWith(
+          'INSERT INTO users (email) VALUES (?) ON CONFLICT(email) DO NOTHING',
+          ['newuser@example.com'],
+          expect.any(Function)
+        );
+        expect(mockDb.get).not.toHaveBeenCalled();
+        expect(req.userEmail).toBe('newuser@example.com');
+        expect(next).toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+        done();
       });
+    });
+
+    test('should authenticate existing user (no-op upsert) and call next()', (done) => {
+      req.headers['x-user-email'] = 'existing@example.com';
 
       authenticateUser(req, res, next);
 
@@ -82,59 +95,9 @@ describe('Authentication Middleware', () => {
       });
     });
 
-    test('should handle database error when checking user', (done) => {
+    test('should handle database error during upsert', (done) => {
       req.headers['x-user-email'] = 'test@example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(new Error('Database error'), null);
-      });
 
-      authenticateUser(req, res, next);
-
-      setImmediate(() => {
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({
-          error: 'Internal server error'
-        });
-        expect(next).not.toHaveBeenCalled();
-        done();
-      });
-    });
-  });
-
-  describe('New User Creation', () => {
-    test('should create new user if not exists and call next()', (done) => {
-      req.headers['x-user-email'] = 'newuser@example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(null, null); // User doesn't exist
-      });
-      
-      mockDb.run.mockImplementation((query, params, callback) => {
-        callback(null);
-      });
-
-      authenticateUser(req, res, next);
-
-      setImmediate(() => {
-        expect(mockDb.run).toHaveBeenCalledWith(
-          'INSERT INTO users (email) VALUES (?)',
-          ['newuser@example.com'],
-          expect.any(Function)
-        );
-        expect(req.userEmail).toBe('newuser@example.com');
-        expect(next).toHaveBeenCalled();
-        done();
-      });
-    });
-
-    test('should handle error when creating new user', (done) => {
-      req.headers['x-user-email'] = 'newuser@example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(null, null);
-      });
-      
       mockDb.run.mockImplementation((query, params, callback) => {
         callback(new Error('Insert failed'));
       });
@@ -147,6 +110,66 @@ describe('Authentication Middleware', () => {
           error: 'Failed to create user'
         });
         expect(next).not.toHaveBeenCalled();
+        done();
+      });
+    });
+
+    test('should not cache a user whose upsert failed', (done) => {
+      req.headers['x-user-email'] = 'flaky@example.com';
+
+      mockDb.run.mockImplementationOnce((query, params, callback) => {
+        callback(new Error('Insert failed'));
+      });
+
+      authenticateUser(req, res, next);
+
+      setImmediate(() => {
+        expect(res.status).toHaveBeenCalledWith(500);
+
+        const req2 = { headers: { 'x-user-email': 'flaky@example.com' } };
+        const next2 = jest.fn();
+        authenticateUser(req2, res, next2);
+
+        setImmediate(() => {
+          expect(mockDb.run).toHaveBeenCalledTimes(2);
+          expect(next2).toHaveBeenCalled();
+          done();
+        });
+      });
+    });
+  });
+
+  describe('Known User Cache', () => {
+    test('should skip the database for repeat requests from a known user', (done) => {
+      req.headers['x-user-email'] = 'cached@example.com';
+
+      authenticateUser(req, res, next);
+
+      setImmediate(() => {
+        expect(mockDb.run).toHaveBeenCalledTimes(1);
+
+        const req2 = { headers: { 'x-user-email': 'cached@example.com' } };
+        const next2 = jest.fn();
+        authenticateUser(req2, res, next2);
+
+        expect(mockDb.run).toHaveBeenCalledTimes(1);
+        expect(req2.userEmail).toBe('cached@example.com');
+        expect(next2).toHaveBeenCalled();
+        done();
+      });
+    });
+
+    test('should hit the database again after the cache is cleared', (done) => {
+      req.headers['x-user-email'] = 'cached@example.com';
+
+      authenticateUser(req, res, next);
+
+      setImmediate(() => {
+        clearKnownUsers();
+        const req2 = { headers: { 'x-user-email': 'cached@example.com' } };
+        authenticateUser(req2, res, jest.fn());
+
+        expect(mockDb.run).toHaveBeenCalledTimes(2);
         done();
       });
     });
@@ -173,13 +196,9 @@ describe('Authentication Middleware', () => {
 
     test('should accept email with subdomain', () => {
       req.headers['x-user-email'] = 'test@mail.example.com';
-      
-      mockDb.get.mockImplementation((query, params, callback) => {
-        callback(null, { email: 'test@mail.example.com' });
-      });
 
       authenticateUser(req, res, next);
-      expect(mockDb.get).toHaveBeenCalled();
+      expect(mockDb.run).toHaveBeenCalled();
     });
   });
 });

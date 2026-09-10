@@ -2,6 +2,7 @@ const request = require('supertest');
 const express = require('express');
 const authRoutes = require('../../routes/auth');
 const { getDatabase } = require('../../database/init');
+const { clearKnownUsers } = require('../../middleware/auth');
 
 jest.mock('../../database/init');
 
@@ -22,9 +23,10 @@ describe('Auth Routes', () => {
   beforeEach(() => {
     mockDb = {
       get: jest.fn(),
-      run: jest.fn()
+      run: jest.fn((query, params, callback) => callback && callback.call({ lastID: 1, changes: 1 }, null))
     };
     getDatabase.mockReturnValue(mockDb);
+    clearKnownUsers();
   });
 
   afterEach(() => {
