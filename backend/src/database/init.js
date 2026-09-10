@@ -5,6 +5,19 @@ let db = null;
 let isClosing = false;
 let isClosed = false;
 
+const PROFILING_ENABLED = process.env.PERF_PROFILING === '1';
+
+// Logs every SQL statement with its execution time. sqlite3 emits
+// 'profile' (sql, elapsedMs) per statement when a listener is attached.
+function attachSqlProfiler(database) {
+  if (!PROFILING_ENABLED || typeof database.on !== 'function') {
+    return;
+  }
+  database.on('profile', (sql, ms) => {
+    console.log(`[sql] ${ms}ms ${sql.replace(/\s+/g, ' ').trim()}`);
+  });
+}
+
 function getDatabase() {
   if (!db) {
     // Reset state when creating a new database connection
@@ -18,6 +31,7 @@ function getDatabase() {
       }
       console.log('Connected to SQLite in-memory database');
     });
+    attachSqlProfiler(db);
   }
   return db;
 }

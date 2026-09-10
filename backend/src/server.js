@@ -11,6 +11,7 @@ const reportRoutes = require('./routes/reports');
 
 const { initializeDatabase } = require('./database/init');
 const { errorHandler } = require('./middleware/errorHandler');
+const { requestTimer } = require('./middleware/requestTimer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,6 +37,9 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Request timing (enabled with PERF_PROFILING=1)
+app.use(requestTimer);
+
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -59,6 +63,11 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     await initializeDatabase();
+    if (process.env.PERF_SEED === '1') {
+      const { seedPerfData } = require('../scripts/seed-perf');
+      const { counts } = await seedPerfData();
+      console.log(`Seeded perf dataset: ${JSON.stringify(counts)}`);
+    }
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
