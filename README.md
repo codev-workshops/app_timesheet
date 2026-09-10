@@ -210,6 +210,15 @@ npm run dev  # Starts Vite dev server with HMR
 
 ### Running Tests
 
+**End-to-end (Playwright):**
+```bash
+cd e2e
+npm install
+npm run install:browsers   # first time only
+npm run test:e2e           # starts backend (3001) + frontend (5173) automatically
+# E2E_REUSE_SERVERS=1 npm run test:e2e  # use dev servers you already have running
+```
+
 **Backend:**
 ```bash
 cd backend
