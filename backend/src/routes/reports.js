@@ -5,6 +5,7 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.get('/client/:clientId', (req, res) => {
   
   const db = getDatabase();
   
-  // Verify client belongs to user
+  // Verify client exists (clients are shared among authenticated users)
   db.get(
-    'SELECT id, name FROM clients WHERE id = ? AND user_email = ?',
-    [clientId, req.userEmail],
+    'SELECT id, name FROM clients WHERE id = ?',
+    [clientId],
     (err, client) => {
       if (err) {
         console.error('Database error:', err);
@@ -73,10 +74,10 @@ router.get('/export/csv/:clientId', (req, res) => {
   
   const db = getDatabase();
   
-  // Verify client belongs to user and get data
+  // Verify client exists and get data (clients are shared among authenticated users)
   db.get(
-    'SELECT id, name FROM clients WHERE id = ? AND user_email = ?',
-    [clientId, req.userEmail],
+    'SELECT id, name FROM clients WHERE id = ?',
+    [clientId],
     (err, client) => {
       if (err) {
         console.error('Database error:', err);
@@ -103,7 +104,7 @@ router.get('/export/csv/:clientId', (req, res) => {
           // Create temporary CSV file
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const filename = `${client.name.replace(/[^a-zA-Z0-9]/g, '_')}_report_${timestamp}.csv`;
-          const tempPath = path.join(__dirname, '../../temp', filename);
+          const tempPath = path.join(__dirname, '../../temp', `${randomUUID()}.csv`);
           
           // Ensure temp directory exists
           const tempDir = path.dirname(tempPath);
@@ -156,10 +157,10 @@ router.get('/export/pdf/:clientId', (req, res) => {
   
   const db = getDatabase();
   
-  // Verify client belongs to user and get data
+  // Verify client exists and get data (clients are shared among authenticated users)
   db.get(
-    'SELECT id, name FROM clients WHERE id = ? AND user_email = ?',
-    [clientId, req.userEmail],
+    'SELECT id, name FROM clients WHERE id = ?',
+    [clientId],
     (err, client) => {
       if (err) {
         console.error('Database error:', err);

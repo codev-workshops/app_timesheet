@@ -55,7 +55,7 @@ describe('Client Routes', () => {
       expect(response.body).toEqual({ clients: mockClients });
       expect(mockDb.all).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id, name, description'),
-        ['test@example.com'],
+        [],
         expect.any(Function)
       );
     });
@@ -323,6 +323,23 @@ describe('Client Routes', () => {
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Failed to delete client' });
+    });
+
+    test('should return 409 if client is referenced by work entries', async () => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(null, { id: 1 });
+      });
+
+      mockDb.run.mockImplementation((query, params, callback) => {
+        const err = new Error('FOREIGN KEY constraint failed');
+        err.code = 'SQLITE_CONSTRAINT';
+        callback(err);
+      });
+
+      const response = await request(app).delete('/api/clients/1');
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({ error: 'Client has work entries and cannot be deleted' });
     });
 
     test('should handle database error when checking client existence', async () => {
