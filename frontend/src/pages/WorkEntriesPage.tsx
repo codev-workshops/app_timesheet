@@ -36,6 +36,28 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import apiClient from '../api/client';
 import { type WorkEntry } from '../types/api';
 
+/**
+ * CRUD screen for time entries.
+ *
+ * @remarks
+ * Follows the same pattern as `ClientsPage`: server state in TanStack Query
+ * (`['workEntries']` plus `['clients']` for the client picker), UI state in
+ * local `useState`, and invalidate-on-success rather than optimistic updates.
+ *
+ * Form representation differs from the wire format on purpose:
+ * - `hours` is kept as a string so the `TextField` can hold intermediate
+ *   input like `"1."` without being coerced; it is parsed on submit.
+ * - `date` is kept as a `Date` for the MUI date picker and serialised to
+ *   `YYYY-MM-DD` on submit, which is the format the backend stores and
+ *   compares. Note `toISOString()` is UTC, so a picker value chosen late in the
+ *   evening in a negative-offset timezone can serialise to the previous day.
+ *
+ * Client-side validation mirrors the backend Joi rules (client required,
+ * `0 < hours <= 24`, date required) so common mistakes get instant feedback
+ * without a round trip; the server remains authoritative.
+ *
+ * @returns The work entries table and create/edit dialog.
+ */
 const WorkEntriesPage: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
@@ -99,6 +121,12 @@ const WorkEntriesPage: React.FC = () => {
   const workEntries = workEntriesData?.workEntries || [];
   const clients = clientsData?.clients || [];
 
+  /**
+   * Opens the dialog in create mode (no argument) or edit mode.
+   *
+   * @param entry - Existing entry to edit. Its numeric `hours` and ISO `date`
+   * are converted into the form's string/`Date` representations.
+   */
   const handleOpen = (entry?: WorkEntry) => {
     if (entry) {
       setEditingEntry(entry);
@@ -121,6 +149,13 @@ const WorkEntriesPage: React.FC = () => {
     setOpen(true);
   };
 
+  /**
+   * Closes the dialog and resets form/edit/error state.
+   *
+   * @remarks
+   * Invoked by the mutations' `onSuccess` so the dialog stays open, with input
+   * preserved, when the server rejects a submission.
+   */
   const handleClose = () => {
     setOpen(false);
     setEditingEntry(null);
@@ -133,6 +168,11 @@ const WorkEntriesPage: React.FC = () => {
     setError('');
   };
 
+  /**
+   * Validates the form, converts it to the API shape and fires the mutation.
+   *
+   * @param e - Form submit event; default is prevented to avoid a page reload.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -170,6 +210,12 @@ const WorkEntriesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Deletes an entry after confirmation.
+   *
+   * @param entry - Entry to delete; hours and client name are echoed in the
+   * confirm text because entries have no other human-readable identifier.
+   */
   const handleDelete = (entry: WorkEntry) => {
     if (window.confirm(`Are you sure you want to delete this ${entry.hours} hour entry for ${entry.client_name}?`)) {
       deleteMutation.mutate(entry.id);

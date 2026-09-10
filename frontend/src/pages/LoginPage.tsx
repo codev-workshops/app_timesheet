@@ -12,6 +12,21 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Email-only sign-in screen.
+ *
+ * @remarks
+ * The form has a single field on purpose: the backend authenticates purely on
+ * the trust-based `x-user-email` header, so collecting a password would be
+ * misleading. The info `Alert` makes that explicit to users.
+ *
+ * Loading and error state are kept local rather than in `AuthProvider` because
+ * only this screen needs them; the provider stays focused on identity. Errors
+ * prefer the server's `{ error }` message (Joi validation, e.g. malformed
+ * email) and fall back to a generic string for network failures.
+ *
+ * @returns The login form; navigates to `/dashboard` on success.
+ */
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -19,6 +34,12 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  /**
+   * Submits the email to `AuthProvider.login`.
+   *
+   * @param e - Form submit event; default is prevented to avoid a page reload,
+   * which would wipe React state before the request finished.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
