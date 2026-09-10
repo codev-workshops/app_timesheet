@@ -156,7 +156,13 @@ const EXPLAIN_QUERIES = [
           FROM work_entries we
           JOIN clients c ON we.client_id = c.id
           WHERE we.user_email = ?
-          ORDER BY we.date DESC, we.created_at DESC`,
+          ORDER BY we.date DESC, we.created_at DESC
+          LIMIT ? OFFSET ?`,
+    params: ['perf@example.com', 50, 0]
+  },
+  {
+    name: 'work-entries list count (GET /api/work-entries total)',
+    sql: `SELECT COUNT(*) AS total FROM work_entries we WHERE we.user_email = ?`,
     params: ['perf@example.com']
   },
   {
@@ -214,6 +220,8 @@ function buildScenarios(ctx) {
     { service: 'clients', name: 'GET /api/clients/:id', build: (app) => auth(request(app).get(`/api/clients/${clientId}`)) },
     // work-entries
     { service: 'work-entries', name: 'GET /api/work-entries', iterations: 10, build: (app) => auth(request(app).get('/api/work-entries')) },
+    { service: 'work-entries', name: 'GET /api/work-entries?limit=200', build: (app) => auth(request(app).get('/api/work-entries?limit=200')) },
+    { service: 'work-entries', name: 'GET /api/work-entries/summary', build: (app) => auth(request(app).get('/api/work-entries/summary')) },
     { service: 'work-entries', name: 'GET /api/work-entries?clientId=', build: (app) => auth(request(app).get(`/api/work-entries?clientId=${clientId}`)) },
     { service: 'work-entries', name: 'GET /api/work-entries/:id', build: (app) => auth(request(app).get(`/api/work-entries/${ctx.workEntryId}`)) },
     {

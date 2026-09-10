@@ -1,4 +1,10 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+import type {
+  ClientsResponse,
+  WorkEntriesPage,
+  WorkEntryListParams,
+  WorkEntrySummaryResponse,
+} from '../types/api';
 
 // Use empty string to make requests relative to the current origin
 // Vite proxy will forward /api requests to the backend
@@ -56,8 +62,8 @@ class ApiClient {
   }
 
   // Client endpoints
-  async getClients() {
-    const response = await this.client.get('/api/clients');
+  async getClients(): Promise<ClientsResponse> {
+    const response = await this.client.get<ClientsResponse>('/api/clients');
     return response.data;
   }
 
@@ -87,9 +93,13 @@ class ApiClient {
   }
 
   // Work entry endpoints
-  async getWorkEntries(clientId?: number) {
-    const params = clientId ? { clientId } : {};
-    const response = await this.client.get('/api/work-entries', { params });
+  async getWorkEntries(params: WorkEntryListParams = {}): Promise<WorkEntriesPage> {
+    const response = await this.client.get<WorkEntriesPage>('/api/work-entries', { params });
+    return response.data;
+  }
+
+  async getWorkEntrySummary(): Promise<WorkEntrySummaryResponse> {
+    const response = await this.client.get<WorkEntrySummaryResponse>('/api/work-entries/summary');
     return response.data;
   }
 

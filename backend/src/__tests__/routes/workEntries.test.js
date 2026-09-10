@@ -39,12 +39,19 @@ describe('Work Entry Routes', () => {
   });
 
   describe('GET /api/work-entries', () => {
-    test('should return all work entries for user', async () => {
+    const mockCount = (total) => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(null, { total });
+      });
+    };
+
+    test('should return paginated work entries for user with default limit', async () => {
       const mockEntries = [
         { id: 1, client_id: 1, hours: 5, description: 'Work 1', date: '2024-01-01', client_name: 'Client A' },
         { id: 2, client_id: 2, hours: 3, description: 'Work 2', date: '2024-01-02', client_name: 'Client B' }
       ];
 
+      mockCount(2);
       mockDb.all.mockImplementation((query, params, callback) => {
         callback(null, mockEntries);
       });
@@ -52,20 +59,75 @@ describe('Work Entry Routes', () => {
       const response = await request(app).get('/api/work-entries');
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual({ workEntries: mockEntries });
+      expect(response.body).toEqual({
+        workEntries: mockEntries,
+        pagination: { total: 2, limit: 50, offset: 0, hasMore: false }
+      });
+      expect(mockDb.get).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT COUNT(*) AS total FROM work_entries we WHERE we.user_email = ?'),
+        ['test@example.com'],
+        expect.any(Function)
+      );
+      expect(mockDb.all).toHaveBeenCalledWith(
+        expect.stringContaining('ORDER BY we.date DESC, we.created_at DESC'),
+        ['test@example.com', 50, 0],
+        expect.any(Function)
+      );
+      expect(mockDb.all).toHaveBeenCalledWith(
+        expect.stringContaining('LIMIT ? OFFSET ?'),
+        expect.any(Array),
+        expect.any(Function)
+      );
+    });
+
+    test('should apply limit and offset and report hasMore', async () => {
+      mockCount(120);
+      mockDb.all.mockImplementation((query, params, callback) => {
+        callback(null, new Array(10).fill({ id: 1 }));
+      });
+
+      const response = await request(app).get('/api/work-entries?limit=10&offset=20');
+
+      expect(response.status).toBe(200);
+      expect(response.body.pagination).toEqual({ total: 120, limit: 10, offset: 20, hasMore: true });
+      expect(mockDb.all).toHaveBeenCalledWith(
+        expect.any(String),
+        ['test@example.com', 10, 20],
+        expect.any(Function)
+      );
+    });
+
+    test('should reject limit above the cap and negative offset', async () => {
+      const tooLarge = await request(app).get('/api/work-entries?limit=201');
+      expect(tooLarge.status).toBe(400);
+      expect(tooLarge.body.error).toBeDefined();
+
+      const negative = await request(app).get('/api/work-entries?offset=-1');
+      expect(negative.status).toBe(400);
+      expect(negative.body.error).toBeDefined();
+      expect(mockDb.all).not.toHaveBeenCalled();
     });
 
     test('should filter by client ID when provided', async () => {
-      mockDb.all.mockImplementation((query, params, callback) => {
+      mockDb.get.mockImplementation((query, params, callback) => {
         expect(params).toEqual(['test@example.com', 1]);
+        callback(null, { total: 0 });
+      });
+      mockDb.all.mockImplementation((query, params, callback) => {
+        expect(params).toEqual(['test@example.com', 1, 50, 0]);
         callback(null, []);
       });
 
       await request(app).get('/api/work-entries?clientId=1');
 
-      expect(mockDb.all).toHaveBeenCalledWith(
+      expect(mockDb.get).toHaveBeenCalledWith(
         expect.stringContaining('AND we.client_id = ?'),
         ['test@example.com', 1],
+        expect.any(Function)
+      );
+      expect(mockDb.all).toHaveBeenCalledWith(
+        expect.stringContaining('AND we.client_id = ?'),
+        ['test@example.com', 1, 50, 0],
         expect.any(Function)
       );
     });
@@ -77,12 +139,68 @@ describe('Work Entry Routes', () => {
       expect(response.body).toEqual({ error: 'Invalid client ID' });
     });
 
+    test('should handle database error on count', async () => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(new Error('Database error'), null);
+      });
+
+      const response = await request(app).get('/api/work-entries');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ error: 'Internal server error' });
+    });
+
     test('should handle database error', async () => {
+      mockCount(5);
       mockDb.all.mockImplementation((query, params, callback) => {
         callback(new Error('Database error'), null);
       });
 
       const response = await request(app).get('/api/work-entries');
+
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ error: 'Internal server error' });
+    });
+  });
+
+  describe('GET /api/work-entries/summary', () => {
+    test('should return aggregate totals scoped to user', async () => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(null, { entryCount: 3, totalHours: 12.5 });
+      });
+
+      const response = await request(app).get('/api/work-entries/summary');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ summary: { entryCount: 3, totalHours: 12.5 } });
+      expect(mockDb.get).toHaveBeenCalledWith(
+        expect.stringContaining('SUM(hours)'),
+        ['test@example.com'],
+        expect.any(Function)
+      );
+      expect(mockDb.get).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE user_email = ?'),
+        ['test@example.com'],
+        expect.any(Function)
+      );
+    });
+
+    test('should return zeros when user has no entries', async () => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(null, { entryCount: 0, totalHours: 0 });
+      });
+
+      const response = await request(app).get('/api/work-entries/summary');
+
+      expect(response.body).toEqual({ summary: { entryCount: 0, totalHours: 0 } });
+    });
+
+    test('should handle database error', async () => {
+      mockDb.get.mockImplementation((query, params, callback) => {
+        callback(new Error('Database error'), null);
+      });
+
+      const response = await request(app).get('/api/work-entries/summary');
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: 'Internal server error' });

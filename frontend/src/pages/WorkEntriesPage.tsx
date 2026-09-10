@@ -23,20 +23,27 @@ import {
   Select,
   MenuItem,
   Chip,
+  TablePagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import apiClient from '../api/client';
 import { type WorkEntry } from '../types/api';
+import { useWorkEntries, useInvalidateWorkEntries } from '../hooks/useWorkEntries';
+
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_ROWS_PER_PAGE = 25;
 
 const WorkEntriesPage: React.FC = () => {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [open, setOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
   const [formData, setFormData] = useState({
@@ -47,11 +54,11 @@ const WorkEntriesPage: React.FC = () => {
   });
   const [error, setError] = useState('');
 
-  const queryClient = useQueryClient();
+  const invalidateWorkEntries = useInvalidateWorkEntries();
 
-  const { data: workEntriesData, isLoading: entriesLoading } = useQuery({
-    queryKey: ['workEntries'],
-    queryFn: () => apiClient.getWorkEntries(),
+  const { data: workEntriesData, isLoading: entriesLoading } = useWorkEntries({
+    limit: rowsPerPage,
+    offset: page * rowsPerPage,
   });
 
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
@@ -63,7 +70,7 @@ const WorkEntriesPage: React.FC = () => {
     mutationFn: (entryData: { clientId: number; hours: number; description?: string; date: string }) =>
       apiClient.createWorkEntry(entryData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      invalidateWorkEntries();
       handleClose();
     },
     onError: (err: unknown) => {
@@ -76,7 +83,7 @@ const WorkEntriesPage: React.FC = () => {
     mutationFn: ({ id, data }: { id: number; data: { clientId?: number; hours?: number; description?: string; date?: string } }) =>
       apiClient.updateWorkEntry(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      invalidateWorkEntries();
       handleClose();
     },
     onError: (err: unknown) => {
@@ -88,7 +95,7 @@ const WorkEntriesPage: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.deleteWorkEntry(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      invalidateWorkEntries();
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { error?: string } } };
@@ -97,7 +104,17 @@ const WorkEntriesPage: React.FC = () => {
   });
 
   const workEntries = workEntriesData?.workEntries || [];
+  const totalEntries = workEntriesData?.pagination.total ?? 0;
   const clients = clientsData?.clients || [];
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
   const handleOpen = (entry?: WorkEntry) => {
     if (entry) {
@@ -224,7 +241,7 @@ const WorkEntriesPage: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {workEntries.length > 0 ? (
-                    workEntries.map((entry: WorkEntry) => (
+                    workEntries.map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell>
                           <Typography variant="subtitle1" fontWeight="medium">
@@ -282,6 +299,15 @@ const WorkEntriesPage: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={totalEntries}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+            />
           </Paper>
         )}
 
@@ -298,7 +324,7 @@ const WorkEntriesPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, clientId: Number(e.target.value) })}
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {clients.map((client: { id: number; name: string }) => (
+                  {clients.map((client) => (
                     <MenuItem key={client.id} value={client.id}>
                       {client.name}
                     </MenuItem>
