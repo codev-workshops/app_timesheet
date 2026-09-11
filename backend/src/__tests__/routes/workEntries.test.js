@@ -166,7 +166,7 @@ describe('Work Entry Routes', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Client not found or does not belong to user' });
+      expect(response.body).toEqual({ error: 'Client not found' });
     });
 
     test('should return 400 for missing required fields', async () => {
@@ -305,7 +305,7 @@ describe('Work Entry Routes', () => {
         .send({ clientId: 999 });
 
       expect(response.status).toBe(400);
-      expect(response.body).toEqual({ error: 'Client not found or does not belong to user' });
+      expect(response.body).toEqual({ error: 'Client not found' });
     });
   });
 

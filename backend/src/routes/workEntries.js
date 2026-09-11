@@ -87,10 +87,10 @@ router.post('/', (req, res, next) => {
     const { clientId, hours, description, date } = value;
     const db = getDatabase();
 
-    // Verify client exists and belongs to user
+    // Verify client exists (clients are shared among authenticated users)
     db.get(
-      'SELECT id FROM clients WHERE id = ? AND user_email = ?',
-      [clientId, req.userEmail],
+      'SELECT id FROM clients WHERE id = ?',
+      [clientId],
       (err, row) => {
         if (err) {
           console.error('Database error:', err);
@@ -98,7 +98,7 @@ router.post('/', (req, res, next) => {
         }
 
         if (!row) {
-          return res.status(400).json({ error: 'Client not found or does not belong to user' });
+          return res.status(400).json({ error: 'Client not found' });
         }
 
         // Create work entry
@@ -117,8 +117,8 @@ router.post('/', (req, res, next) => {
                       we.created_at, we.updated_at, c.name as client_name
                FROM work_entries we
                JOIN clients c ON we.client_id = c.id
-               WHERE we.id = ?`,
-              [this.lastID],
+               WHERE we.id = ? AND we.user_email = ?`,
+              [this.lastID, req.userEmail],
               (err, row) => {
                 if (err) {
                   console.error('Database error:', err);
@@ -170,11 +170,11 @@ router.put('/:id', (req, res, next) => {
           return res.status(404).json({ error: 'Work entry not found' });
         }
 
-        // If clientId is being updated, verify it belongs to user
+        // If clientId is being updated, verify it exists (clients are shared among authenticated users)
         if (value.clientId) {
           db.get(
-            'SELECT id FROM clients WHERE id = ? AND user_email = ?',
-            [value.clientId, req.userEmail],
+            'SELECT id FROM clients WHERE id = ?',
+            [value.clientId],
             (err, clientRow) => {
               if (err) {
                 console.error('Database error:', err);
@@ -182,7 +182,7 @@ router.put('/:id', (req, res, next) => {
               }
 
               if (!clientRow) {
-                return res.status(400).json({ error: 'Client not found or does not belong to user' });
+                return res.status(400).json({ error: 'Client not found' });
               }
 
               performUpdate();
@@ -234,8 +234,8 @@ router.put('/:id', (req, res, next) => {
                       we.created_at, we.updated_at, c.name as client_name
                FROM work_entries we
                JOIN clients c ON we.client_id = c.id
-               WHERE we.id = ?`,
-              [workEntryId],
+               WHERE we.id = ? AND we.user_email = ?`,
+              [workEntryId, req.userEmail],
               (err, row) => {
                 if (err) {
                   console.error('Database error:', err);

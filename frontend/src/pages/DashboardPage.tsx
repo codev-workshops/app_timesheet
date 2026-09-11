@@ -17,9 +17,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/client';
+import { useAuth } from '../hooks/useAuth';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: clientsData } = useQuery({
     queryKey: ['clients'],
@@ -27,8 +29,9 @@ const DashboardPage: React.FC = () => {
   });
 
   const { data: workEntriesData } = useQuery({
-    queryKey: ['workEntries'],
+    queryKey: ['workEntries', user?.email],
     queryFn: () => apiClient.getWorkEntries(),
+    enabled: !!user,
   });
 
   const clients = clientsData?.clients || [];

@@ -34,6 +34,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import apiClient from '../api/client';
+import { useAuth } from '../hooks/useAuth';
 import { type WorkEntry } from '../types/api';
 
 const WorkEntriesPage: React.FC = () => {
@@ -48,10 +49,12 @@ const WorkEntriesPage: React.FC = () => {
   const [error, setError] = useState('');
 
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: workEntriesData, isLoading: entriesLoading } = useQuery({
-    queryKey: ['workEntries'],
+    queryKey: ['workEntries', user?.email],
     queryFn: () => apiClient.getWorkEntries(),
+    enabled: !!user,
   });
 
   const { data: clientsData, isLoading: clientsLoading } = useQuery({
@@ -64,6 +67,7 @@ const WorkEntriesPage: React.FC = () => {
       apiClient.createWorkEntry(entryData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport', user?.email] });
       handleClose();
     },
     onError: (err: unknown) => {
@@ -77,6 +81,7 @@ const WorkEntriesPage: React.FC = () => {
       apiClient.updateWorkEntry(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport', user?.email] });
       handleClose();
     },
     onError: (err: unknown) => {
@@ -89,6 +94,7 @@ const WorkEntriesPage: React.FC = () => {
     mutationFn: (id: number) => apiClient.deleteWorkEntry(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport', user?.email] });
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { error?: string } } };

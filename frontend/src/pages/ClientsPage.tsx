@@ -61,6 +61,8 @@ const ClientsPage: React.FC = () => {
       apiClient.updateClient(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['workEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport'] });
       handleClose();
     },
     onError: (err: unknown) => {
@@ -73,6 +75,7 @@ const ClientsPage: React.FC = () => {
     mutationFn: (id: number) => apiClient.deleteClient(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport'] });
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { error?: string } } };
@@ -84,6 +87,7 @@ const ClientsPage: React.FC = () => {
     mutationFn: () => apiClient.deleteAllClients(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clientReport'] });
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { error?: string } } };
@@ -147,13 +151,21 @@ const ClientsPage: React.FC = () => {
   };
 
   const handleDelete = (client: Client) => {
-    if (window.confirm(`Are you sure you want to delete "${client.name}"?`)) {
+    if (
+      window.confirm(
+        `Delete "${client.name}"? This client is shared with all users. Clients with recorded time entries are protected and cannot be deleted.`
+      )
+    ) {
       deleteMutation.mutate(client.id);
     }
   };
 
   const handleDeleteAll = () => {
-    if (window.confirm('Are you sure you want to delete ALL clients? This action cannot be undone.')) {
+    if (
+      window.confirm(
+        'Delete ALL clients? This affects all users and cannot be undone. If any client has time entries, the entire operation will be blocked.'
+      )
+    ) {
       deleteAllMutation.mutate();
     }
   };
